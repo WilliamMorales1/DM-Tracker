@@ -1,6 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"image"
+	"image/png"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 // setupTestDB points the package-level conn/roConn/q at a fresh migrated
@@ -60,18 +65,56 @@ func chdirIntoTempNotesDir(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(orig) })
 }
 
-func TestHandleAPISessionsReturnsSeedData(t *testing.T) {
+func TestHandleAPICreateMapStoresUploadedImage(t *testing.T) {
 	setupTestDB(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
-	w := httptest.NewRecorder()
-	handleAPISessions(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body: %s", w.Code, http.StatusOK, w.Body.String())
+	workDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workDir, "maps"), 0755); err != nil {
+		t.Fatalf("mkdir maps: %v", err)
 	}
-	if !strings.Contains(w.Body.String(), "sessionNum") {
-		t.Errorf("body missing expected field, got: %s", w.Body.String())
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+
+	var pngData bytes.Buffer
+	if err := png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 1, 1))); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	if err := form.WriteField("name", "Cavern"); err != nil {
+		t.Fatal(err)
+	}
+	file, err := form.CreateFormFile("image", "cavern.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(file, &pngData); err != nil {
+		t.Fatal(err)
+	}
+	if err := form.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/maps", &body)
+	req.Header.Set("Content-Type", form.FormDataContentType())
+	w := httptest.NewRecorder()
+	handleAPICreateMap(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body: %s", w.Code, http.StatusCreated, w.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join("maps", "Cavern.png")); err != nil {
+		t.Fatalf("uploaded map missing: %v", err)
+	}
+
+	list := httptest.NewRecorder()
+	handleAPIMaps(list, httptest.NewRequest(http.MethodGet, "/api/maps", nil))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"id":"Cavern"`) {
+		t.Fatalf("map missing from list: status=%d body=%s", list.Code, list.Body.String())
 	}
 }
 

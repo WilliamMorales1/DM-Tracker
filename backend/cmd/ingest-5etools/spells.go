@@ -10,7 +10,7 @@ import (
 	"log"
 	"strings"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 const spellDataBaseURL = "https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/spells/"

@@ -49,7 +49,9 @@ export async function spellsPanel() {
     }
     const detail = h('div', { className: 'mt-3' }, []);
     const schools = Array.from(new Set(list.map((s) => s.school).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const sources = Array.from(new Set(list.map((s) => s.source).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     let schoolFilter = '';
+    let sourceFilter = '';
     let levelFilter = '';
     let selectSeq = 0;
     let selectedName = null;
@@ -72,6 +74,7 @@ export async function spellsPanel() {
             const q = query.toLowerCase();
             return list
                 .filter((s) => (schoolFilter === '' || s.school === schoolFilter) &&
+                (sourceFilter === '' || s.source === sourceFilter) &&
                 (levelFilter === '' || String(s.level) === levelFilter) &&
                 (q === '' || s.name.toLowerCase().includes(q)))
                 .slice()
@@ -104,8 +107,16 @@ export async function spellsPanel() {
         h('option', { value: '' }, ['All Levels']),
         ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((lvl) => h('option', { value: String(lvl) }, [lvl === 0 ? 'Cantrip' : `Level ${lvl}`])),
     ]);
+    const sourceSelect = h('select', {
+        className: 'form-select w-auto',
+        'aria-label': 'Filter spells by source',
+        onchange: (e) => {
+            sourceFilter = e.target.value;
+            refreshSuggestions();
+        },
+    }, [h('option', { value: '' }, ['All Sources']), ...sources.map((source) => h('option', { value: source }, [source]))]);
     const root = h('div', {}, [
-        h('div', { className: 'flex gap-2 mb-2' }, [nameInput, schoolSelect, levelSelect]),
+        h('div', { className: 'flex gap-2 mb-2' }, [nameInput, schoolSelect, levelSelect, sourceSelect]),
         detail,
     ]);
     return registerPanel(root, { getTitle: () => selectedName });

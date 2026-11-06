@@ -14,7 +14,7 @@ function renderAnswer(text) {
     }
     return wrap;
 }
-const MODEL_STORAGE_KEY = 'oota-chat-model';
+const MODEL_STORAGE_KEY = 'tracker-chat-model';
 export async function chatPanel() {
     const history = h('div', { id: 'chat-history' }, []);
     const status = h('div', { className: 'mt-2' }, []);

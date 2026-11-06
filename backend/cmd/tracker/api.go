@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -52,60 +52,6 @@ func listHandler[T, R any](list func(ctx context.Context) ([]T, error), toDTO fu
 		}
 		writeJSON(w, out)
 	}
-}
-
-type sessionDTO struct {
-	SessionNum int64  `json:"sessionNum"`
-	Title      string `json:"title"`
-	Chapters   string `json:"chapters"`
-	LevelStart int64  `json:"levelStart"`
-	LevelEnd   int64  `json:"levelEnd"`
-	Summary    string `json:"summary"`
-	Checkpoint string `json:"checkpoint"`
-}
-
-func sessionToDTO(s db.Session) sessionDTO {
-	return sessionDTO{
-		SessionNum: s.SessionNum,
-		Title:      s.Title,
-		Chapters:   s.Chapters.String,
-		LevelStart: s.LevelStart.Int64,
-		LevelEnd:   s.LevelEnd.Int64,
-		Summary:    s.Summary.String,
-		Checkpoint: s.Checkpoint.String,
-	}
-}
-
-func handleAPISessions(w http.ResponseWriter, r *http.Request) {
-	listHandler(q.ListSessions, sessionToDTO)(w, r)
-}
-
-type demonLordDTO struct {
-	Name              string `json:"name"`
-	Dominions         string `json:"dominions"`
-	Epithets          string `json:"epithets"`
-	Layer             string `json:"layer"`
-	Description       string `json:"description"`
-	Servants          string `json:"servants"`
-	Component         string `json:"component"`
-	ComponentLocation string `json:"componentLocation"`
-}
-
-func demonLordToDTO(d db.DemonLord) demonLordDTO {
-	return demonLordDTO{
-		Name:              d.Name,
-		Dominions:         d.Dominions,
-		Epithets:          d.Epithets,
-		Layer:             d.Layer,
-		Description:       d.Description,
-		Servants:          d.Servants,
-		Component:         d.Component,
-		ComponentLocation: d.ComponentLocation,
-	}
-}
-
-func handleAPIDemonLords(w http.ResponseWriter, r *http.Request) {
-	listHandler(q.ListDemonLords, demonLordToDTO)(w, r)
 }
 
 type actionDTO struct {
@@ -174,6 +120,7 @@ type monsterDTO struct {
 	Type     string `json:"type"`
 	Cr       string `json:"cr"`
 	ImageUrl string `json:"imageUrl"`
+	Source   string `json:"source"`
 }
 
 func monsterToDTO(m db.ListMonstersRow) monsterDTO {
@@ -183,6 +130,7 @@ func monsterToDTO(m db.ListMonstersRow) monsterDTO {
 		Type:     m.Type.String,
 		Cr:       m.Cr.String,
 		ImageUrl: m.ImageUrl,
+		Source:   m.Source,
 	}
 }
 
@@ -337,6 +285,7 @@ type spellDTO struct {
 	Level   int64  `json:"level"`
 	School  string `json:"school"`
 	Classes string `json:"classes"`
+	Source  string `json:"source"`
 }
 
 func spellToDTO(s db.ListSpellsRow) spellDTO {
@@ -346,6 +295,7 @@ func spellToDTO(s db.ListSpellsRow) spellDTO {
 		Level:   s.Level,
 		School:  s.School.String,
 		Classes: s.Classes,
+		Source:  s.Source,
 	}
 }
 
@@ -401,10 +351,6 @@ func handleAPISpell(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, spellDetailToDTO(s))
-}
-
-func handleAPIMaps(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, gameMaps)
 }
 
 func handleAPIChat(w http.ResponseWriter, r *http.Request) {

@@ -19,11 +19,12 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 const dataBaseURL = "https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/bestiary/"
@@ -31,10 +32,9 @@ const imgBaseURL = "https://5e.tools/img/"
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 
-// sources lists the bestiary files to ingest: the core Monster Manual (2014
-// and 2024 printings) plus every book that contributes monsters to Out of
-// the Abyss (demons, drow, Underdark creatures).
-var sources = []string{"mm", "oota", "mtf", "vgm", "xmm"}
+const bestiaryIndexURL = dataBaseURL + "index.json"
+
+const defaultSources = "mm,xmm"
 
 type entryBlock struct {
 	Name    string `json:"name"`
@@ -42,12 +42,30 @@ type entryBlock struct {
 }
 
 type spellcastingBlock struct {
-	Name          string         `json:"name"`
-	HeaderEntries []string       `json:"headerEntries"`
-	FooterEntries []string       `json:"footerEntries"`
-	Spells        map[string]any `json:"spells"`
-	Will          []string       `json:"will"`
-	Daily         map[string]any `json:"daily"`
+	Name          string            `json:"name"`
+	HeaderEntries []string          `json:"headerEntries"`
+	FooterEntries []string          `json:"footerEntries"`
+	Spells        map[string]any    `json:"spells"`
+	Will          []json.RawMessage `json:"will"`
+	Daily         map[string]any    `json:"daily"`
+}
+
+type statValue int
+
+func (v *statValue) UnmarshalJSON(data []byte) error {
+	*v = 10
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*v = statValue(n)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		if n, err := strconv.Atoi(s); err == nil {
+			*v = statValue(n)
+		}
+	}
+	return nil
 }
 
 type monsterJSON struct {
@@ -62,16 +80,16 @@ type monsterJSON struct {
 		Formula string `json:"formula"`
 	} `json:"hp"`
 	Speed           map[string]json.RawMessage `json:"speed"`
-	Str             *int                       `json:"str"`
-	Dex             *int                       `json:"dex"`
-	Con             *int                       `json:"con"`
-	Int             *int                       `json:"int"`
-	Wis             *int                       `json:"wis"`
-	Cha             *int                       `json:"cha"`
+	Str             *statValue                 `json:"str"`
+	Dex             *statValue                 `json:"dex"`
+	Con             *statValue                 `json:"con"`
+	Int             *statValue                 `json:"int"`
+	Wis             *statValue                 `json:"wis"`
+	Cha             *statValue                 `json:"cha"`
 	Save            map[string]string          `json:"save"`
 	Skill           map[string]json.RawMessage `json:"skill"`
 	Senses          []string                   `json:"senses"`
-	Passive         *int                       `json:"passive"`
+	Passive         *statValue                 `json:"passive"`
 	Immune          []json.RawMessage          `json:"immune"`
 	Resist          []json.RawMessage          `json:"resist"`
 	Vulnerable      []json.RawMessage          `json:"vulnerable"`
@@ -298,8 +316,18 @@ func spellcastingToJSON(blocks []spellcastingBlock) string {
 		}
 		if len(b.Will) > 0 {
 			var names []string
-			for _, s := range b.Will {
-				names = append(names, cleanText(s))
+			for _, raw := range b.Will {
+				var spell string
+				if err := json.Unmarshal(raw, &spell); err == nil {
+					names = append(names, cleanText(spell))
+					continue
+				}
+				var entry struct {
+					Entry string `json:"entry"`
+				}
+				if err := json.Unmarshal(raw, &entry); err == nil && entry.Entry != "" {
+					names = append(names, cleanText(entry.Entry))
+				}
 			}
 			parts = append(parts, "At will: "+strings.Join(names, ", "))
 		}
@@ -521,7 +549,7 @@ func skillsToString(m map[string]json.RawMessage) string {
 	return strings.Join(parts, ", ")
 }
 
-func intVal(p *int) int64 {
+func intVal(p *statValue) int64 {
 	if p == nil {
 		return 10
 	}
@@ -557,8 +585,43 @@ func fetchJSON(url string, v any) error {
 }
 
 func main() {
-	dbPath := flag.String("db", "oota.db", "path to the sqlite database")
+	dbPath := flag.String("db", "tracker.db", "path to the sqlite database")
+	sourceFlag := flag.String("source", defaultSources, "comma-separated 5etools source codes to add to core bestiaries")
+	allSources := flag.Bool("all", false, "ingest every bestiary in the 5etools data index")
 	flag.Parse()
+
+	var sourceIndex map[string]string
+	if err := fetchJSON(bestiaryIndexURL, &sourceIndex); err != nil {
+		log.Fatalf("fetch bestiary index: %v", err)
+	}
+	var sources []string
+	if *allSources {
+		for _, file := range sourceIndex {
+			sources = append(sources, strings.TrimSuffix(strings.TrimPrefix(file, "bestiary-"), ".json"))
+		}
+		slices.Sort(sources)
+	} else {
+		selected := map[string]bool{}
+		for source := range strings.SplitSeq(defaultSources+","+*sourceFlag, ",") {
+			selected[strings.ToLower(strings.TrimSpace(source))] = true
+		}
+		for code, file := range sourceIndex {
+			if selected[strings.ToLower(code)] {
+				sources = append(sources, strings.TrimSuffix(strings.TrimPrefix(file, "bestiary-"), ".json"))
+				delete(selected, strings.ToLower(code))
+			}
+		}
+		if len(selected) > 0 {
+			var unknown []string
+			for source := range selected {
+				unknown = append(unknown, source)
+			}
+			slices.Sort(unknown)
+			log.Fatalf("unknown source code(s): %s", strings.Join(unknown, ", "))
+		}
+		slices.Sort(sources)
+	}
+	log.Printf("selected %d bestiary sources", len(sources))
 
 	conn, err := db.Open(*dbPath)
 	if err != nil {
@@ -655,7 +718,8 @@ func main() {
 		}
 		var mj monsterJSON
 		if err := json.Unmarshal(b, &mj); err != nil {
-			log.Fatalf("unmarshal resolved monster %q: %v", key, err)
+			log.Printf("skipping malformed monster %q: %v", key, err)
+			continue
 		}
 		monsters = append(monsters, mj)
 	}

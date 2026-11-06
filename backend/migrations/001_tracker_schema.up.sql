@@ -1,31 +1,147 @@
-CREATE TABLE IF NOT EXISTS Actions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT NOT NULL,
-    tag         TEXT NOT NULL,
+CREATE TABLE Monsters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    type TEXT,
+    cr TEXT,
+    hp INT,
+    hp_formula TEXT,
+    ac INT,
+    ac_desc TEXT,
+    speed TEXT,
+    str INT DEFAULT 10,
+    dex INT DEFAULT 10,
+    con INT DEFAULT 10,
+    int_score INT DEFAULT 10,
+    wis INT DEFAULT 10,
+    cha INT DEFAULT 10,
+    saving_throws TEXT,
+    skills TEXT,
+    damage_resistances TEXT,
+    damage_immunities TEXT,
+    condition_immunities TEXT,
+    senses TEXT,
+    languages TEXT,
+    traits TEXT,
+    actions TEXT,
+    legendary_actions TEXT,
+    notes TEXT,
+    source TEXT,
+    size TEXT,
+    alignment TEXT,
+    passive_perception INT,
+    vulnerabilities TEXT,
+    environment TEXT,
+    image_url TEXT,
+    reactions TEXT,
+    spellcasting TEXT,
+    token_url TEXT,
+    bonus_actions TEXT,
+    lair_actions TEXT,
+    regional_effects TEXT
+);
+
+CREATE TABLE Notes (
+    name TEXT PRIMARY KEY,
+    content TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE GameMaps (
+    id TEXT PRIMARY KEY,
+    img TEXT NOT NULL
+);
+
+CREATE TABLE MapMarkers (
+    map_id TEXT REFERENCES GameMaps(id) ON DELETE CASCADE,
+    i INT NOT NULL,
+    x INT NOT NULL,
+    y INT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL CHECK (length(body) <= 500),
+    PRIMARY KEY (map_id, i)
+);
+
+CREATE TABLE chapter_chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chapter_title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    embedding TEXT NOT NULL
+);
+
+CREATE VIRTUAL TABLE chapter_chunks_fts USING fts5(
+    chapter_title,
+    content,
+    content='chapter_chunks',
+    content_rowid='id',
+    tokenize='porter unicode61'
+);
+
+CREATE TRIGGER chapter_chunks_ai AFTER INSERT ON chapter_chunks BEGIN
+    INSERT INTO chapter_chunks_fts(rowid, chapter_title, content)
+    VALUES (new.id, new.chapter_title, new.content);
+END;
+
+CREATE TRIGGER chapter_chunks_ad AFTER DELETE ON chapter_chunks BEGIN
+    INSERT INTO chapter_chunks_fts(chapter_chunks_fts, rowid, chapter_title, content)
+    VALUES ('delete', old.id, old.chapter_title, old.content);
+END;
+
+CREATE TRIGGER chapter_chunks_au AFTER UPDATE ON chapter_chunks BEGIN
+    INSERT INTO chapter_chunks_fts(chapter_chunks_fts, rowid, chapter_title, content)
+    VALUES ('delete', old.id, old.chapter_title, old.content);
+    INSERT INTO chapter_chunks_fts(rowid, chapter_title, content)
+    VALUES (new.id, new.chapter_title, new.content);
+END;
+
+CREATE TABLE Spells (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    level INT NOT NULL,
+    school TEXT,
+    ritual INT NOT NULL DEFAULT 0,
+    casting_time TEXT,
+    range TEXT,
+    components TEXT,
+    duration TEXT,
+    concentration INT NOT NULL DEFAULT 0,
+    classes TEXT,
+    description TEXT,
+    higher_level TEXT,
+    source TEXT
+);
+
+CREATE TABLE InitiativePresets (
+    name TEXT PRIMARY KEY,
+    combatants TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE Actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    tag TEXT NOT NULL,
     description TEXT NOT NULL
 );
 
 INSERT INTO Actions (name, tag, description) VALUES
-('Study', 'ACTION', 'When you take the Study action, you make an Intelligence check to study your memory, a book, a creature, a clue, an object, or another source of knowledge and call to mind an important piece of information about it. The Areas of Knowledge table suggests which skills are applicable when you take this action, depending on the area of knowledge the Intelligence check is about.');
+('Study', 'ACTION', 'When you take the Study action, make an Intelligence check to recall useful information about a source of knowledge.');
 
-CREATE TABLE IF NOT EXISTS SkillAreas (
-    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE SkillAreas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     skill TEXT NOT NULL,
     areas TEXT NOT NULL
 );
 
 INSERT INTO SkillAreas (skill, areas) VALUES
-('Arcana', 'Spells, magic items, eldritch symbols, magical traditions, planes of existence, and certain creatures (Aberrations, Constructs, Elementals, Fey, and Monstrosities)'),
-('History', 'Historic events and people, ancient civilizations, wars, and certain creatures (Giants and Humanoids)'),
+('Arcana', 'Spells, magic items, magical traditions, planes, and certain creatures'),
+('History', 'Historic events, people, civilizations, and wars'),
 ('Investigation', 'Traps, ciphers, riddles, and gadgetry'),
-('Nature', 'Terrain, flora, weather, and certain creatures (Beasts, Dragons, Oozes, and Plants)'),
-('Religion', 'Deities, religious hierarchies and rites, holy symbols, cults, and certain creatures (Celestials, Fiends, and Undead)');
+('Nature', 'Terrain, flora, weather, and certain creatures'),
+('Religion', 'Deities, rites, holy symbols, cults, and certain creatures');
 
-CREATE TABLE IF NOT EXISTS Conditions (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    name              TEXT NOT NULL,
-    description       TEXT,
-    effects           TEXT,
+CREATE TABLE Conditions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    effects TEXT,
     description_after TEXT
 );
 
@@ -78,9 +194,9 @@ An effect that removes exhaustion reduces its level as specified in the effect''
 
 Finishing a long rest reduces a creature''s exhaustion level by 1, provided that the creature has also ingested some food and drink.');
 
-CREATE TABLE IF NOT EXISTS ExhaustionLevels (
-    id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    level  TEXT NOT NULL,
+CREATE TABLE ExhaustionLevels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL,
     effect TEXT NOT NULL
 );
 
@@ -91,5 +207,3 @@ INSERT INTO ExhaustionLevels (level, effect) VALUES
 ('4', 'Hit point maximum halved'),
 ('5', 'Speed reduced to 0'),
 ('6', 'Death');
-
-DROP TABLE IF EXISTS Refs;

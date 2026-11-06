@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 func main() {
-	if err := db.ResetMigrations("migrations", "oota.db"); err != nil {
+	if err := db.ResetMigrations("migrations", "tracker.db"); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("migrations complete")

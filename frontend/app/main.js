@@ -1,7 +1,6 @@
 import { h, mount } from './dom.js';
 import { setTitle } from './title.js';
 import { getPanelMeta } from './panel.js';
-import { sessionsPanel } from './panels/sessions.js';
 import { monstersPanel } from './panels/monsters.js';
 import { spellsPanel } from './panels/spells.js';
 import { mapsPanel } from './panels/maps.js';
@@ -10,15 +9,12 @@ import { searchPanel } from './panels/search.js';
 import { notesPanel } from './panels/notes.js';
 import { initiativePanel } from './panels/initiative.js';
 import { refsPanel } from './panels/references.js';
-import { soundboardPanel } from './panels/soundboard.js';
 const tabs = [
-    { name: 'Sessions', path: 'sessions', load: sessionsPanel },
     { name: 'Notes', path: 'notes', load: notesPanel },
     { name: 'Monsters', path: 'monsters', load: monstersPanel },
     { name: 'Spells', path: 'spells', load: spellsPanel },
     { name: 'Maps', path: 'maps', load: mapsPanel },
     { name: 'Initiative', path: 'initiative', load: async () => initiativePanel() },
-    { name: 'Soundboard', path: 'soundboard', load: soundboardPanel },
     { name: 'Ask Agent', path: 'chat', load: async () => chatPanel() },
     { name: 'Lore Search', path: 'search', load: async () => searchPanel() },
     { name: 'References', path: 'references', load: async () => refsPanel() },
@@ -26,7 +22,7 @@ const tabs = [
 const root = document.getElementById('root');
 const header = h('header', { className: 'bg-black py-3 mb-4 border-b border-gray-600' }, [
     h('div', { className: 'container' }, [
-        h('h1', { className: 'text-5xl font-bold text-yellow-400 mb-0' }, ['Out of the Abyss']),
+        h('h1', { className: 'text-5xl font-bold text-yellow-400 mb-0' }, ['DM Tracker']),
     ]),
 ]);
 const navList = h('ul', { className: 'nav-tabs mb-3' }, []);
@@ -68,4 +64,4 @@ for (const t of tabs) {
 }
 const container = h('div', { className: 'container' }, [navList, panel]);
 root.append(header, container);
-activate('sessions');
+activate('monsters');

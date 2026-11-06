@@ -1,6 +1,8 @@
-oota.exe
-backend/oota
+tracker.exe
+backend/tracker
+backend/notes/
 backend/tmp/
-backend/oota.db
+backend/maps/
+backend/tracker.db
 # campaign map art is copyrighted; supply your own copies
 backend/images/*.webp

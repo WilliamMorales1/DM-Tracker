@@ -10,7 +10,7 @@ build-frontend:
 	test -f frontend/vendor/monaco/min/vs/loader.js
 
 build-backend:
-	cd backend && go build -o oota ./cmd/oota
+	cd backend && go build -o tracker ./cmd/tracker
 
 test-ui: build
 	cd backend && go test -tags=e2e ./e2e
@@ -21,18 +21,14 @@ plot:
 	cd backend && go run ./cmd/plot -map $(MAP)
 
 run:
-	cd backend && ./oota
+	cd backend && ./tracker
 
 dev: build-frontend
-	cd backend && go run ./cmd/oota
+	cd backend && go run ./cmd/tracker
 
 clean:
-	rm -f backend/oota
+	rm -f backend/tracker
 	rm -rf backend/tmp
 
 migrate:
 	cd backend && go run ./cmd/migrate
-
-reseed: migrate
-	cd backend && go run ./cmd/ingest-5etools
-	cd backend && go run ./cmd/ingest-lore

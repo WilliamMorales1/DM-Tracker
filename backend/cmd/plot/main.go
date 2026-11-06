@@ -27,7 +27,7 @@ import (
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/image/webp"
 
-	"oota/internal/db"
+	"tracker/internal/db"
 )
 
 type marker struct {
@@ -37,7 +37,7 @@ type marker struct {
 }
 
 func main() {
-	dbPath := flag.String("db", "oota.db", "path to the sqlite database")
+	dbPath := flag.String("db", "tracker.db", "path to the sqlite database")
 	mapID := flag.String("map", "", "map_id to plot (default: every map in GameMaps)")
 	out := flag.String("out", "", "output PNG path (default <map_id>.png; ignored when plotting more than one map)")
 	flag.Parse()

@@ -1,9 +1,0 @@
-ALTER TABLE Monsters DROP COLUMN spellcasting;
-ALTER TABLE Monsters DROP COLUMN reactions;
-ALTER TABLE Monsters DROP COLUMN image_url;
-ALTER TABLE Monsters DROP COLUMN environment;
-ALTER TABLE Monsters DROP COLUMN vulnerabilities;
-ALTER TABLE Monsters DROP COLUMN passive_perception;
-ALTER TABLE Monsters DROP COLUMN alignment;
-ALTER TABLE Monsters DROP COLUMN size;
-ALTER TABLE Monsters DROP COLUMN source;

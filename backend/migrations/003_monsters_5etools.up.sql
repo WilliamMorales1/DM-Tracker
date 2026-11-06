@@ -1,9 +1,0 @@
-ALTER TABLE Monsters ADD COLUMN source TEXT;
-ALTER TABLE Monsters ADD COLUMN size TEXT;
-ALTER TABLE Monsters ADD COLUMN alignment TEXT;
-ALTER TABLE Monsters ADD COLUMN passive_perception INT;
-ALTER TABLE Monsters ADD COLUMN vulnerabilities TEXT;
-ALTER TABLE Monsters ADD COLUMN environment TEXT;
-ALTER TABLE Monsters ADD COLUMN image_url TEXT;
-ALTER TABLE Monsters ADD COLUMN reactions TEXT;
-ALTER TABLE Monsters ADD COLUMN spellcasting TEXT;

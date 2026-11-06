@@ -1,149 +1,81 @@
 import { api } from '../api.js';
-import { h, svg } from '../dom.js';
+import { h } from '../dom.js';
+
 export async function mapsPanel() {
-    const maps = (await api.maps());
-    let coordTracking = false;
-    const container = h('div', {}, []);
-    const coordDisplay = h('div', {
-        className: 'fixed hidden text-gold font-mono text-sm bg-surface/85 px-[7px] py-[2px] rounded pointer-events-none z-[200]',
+    let maps = await api.maps();
+    const select = h('select', { className: 'form-select w-auto', 'aria-label': 'Select a map' }, []);
+    const nameInput = h('input', {
+        type: 'text',
+        className: 'form-control w-[220px]',
+        placeholder: 'Map name',
+        maxlength: '64',
+        pattern: '[A-Za-z0-9_-]+',
+        required: true,
+        'aria-label': 'Map name',
     });
-    const toggleBtn = h('button', {
-        className: 'btn btn-outline-warning',
-        onclick: () => {
-            coordTracking = !coordTracking;
-            if (!coordTracking)
-                coordDisplay.classList.add('hidden');
+    const imageInput = h('input', {
+        type: 'file',
+        className: 'form-control w-auto',
+        accept: 'image/png,image/jpeg,image/webp',
+        required: true,
+        'aria-label': 'Map image',
+    });
+    const status = h('span', { className: 'text-sm text-gray-400' }, []);
+    const image = h('img', {
+        className: 'hidden max-w-full h-auto rounded',
+        alt: '',
+    });
+    const empty = h('p', { className: 'text-gray-400' }, ['No maps yet. Upload an image to add one.']);
+
+    function renderMaps(selected = select.value) {
+        select.innerHTML = '';
+        select.append(h('option', { value: '' }, ['Select a map...']));
+        for (const map of maps)
+            select.append(h('option', { value: map.id }, [map.id]));
+        select.value = maps.some((map) => map.id === selected) ? selected : maps[0]?.id ?? '';
+        const current = maps.find((map) => map.id === select.value);
+        image.classList.toggle('hidden', !current);
+        empty.classList.toggle('hidden', maps.length > 0);
+        if (current) {
+            image.src = current.img;
+            image.alt = current.id;
+        }
+    }
+
+    select.addEventListener('change', () => renderMaps(select.value));
+    const form = h('form', {
+        className: 'flex flex-wrap gap-2 items-center',
+        onsubmit: async (event) => {
+            event.preventDefault();
+            const submit = form.querySelector('button[type="submit"]');
+            submit.disabled = true;
+            status.textContent = 'Uploading...';
+            try {
+                const map = await api.createMap(nameInput.value.trim(), imageInput.files[0]);
+                maps.push(map);
+                maps.sort((left, right) => left.id.localeCompare(right.id));
+                renderMaps(map.id);
+                nameInput.value = '';
+                imageInput.value = '';
+                status.textContent = 'Map added.';
+            }
+            catch (error) {
+                status.textContent = String(error);
+            }
+            finally {
+                submit.disabled = false;
+            }
         },
-    }, ['Toggle Coordinate Tooltip']);
-    const select = h('select', { className: 'form-select w-auto', 'aria-label': 'Select a map' }, [
-        h('option', { value: '' }, ['Select a map...']),
-        ...maps.map((gm) => h('option', { value: gm.id }, [gm.id])),
+    }, [
+        nameInput,
+        imageInput,
+        h('button', { type: 'submit', className: 'btn btn-outline-warning' }, ['Add Map']),
+        status,
     ]);
-    container.append(h('div', { className: 'flex gap-3 items-center mb-3' }, [select, toggleBtn]), coordDisplay);
-    const svgEls = [];
-    const mapDivs = [];
-    function showMap(id) {
-        mapDivs.forEach((div) => {
-            div.classList.toggle('hidden', div.dataset.mapId !== id);
-        });
-        if (id)
-            requestAnimationFrame(updateScales);
-    }
-    select.addEventListener('change', () => showMap(select.value));
-    for (const gm of maps) {
-        const card = h('div', { className: 'dc hidden' });
-        const svgEl = svg('svg', {
-            class: 'smap',
-            viewBox: gm.vb,
-            style: 'display:block;width:100%',
-        });
-        svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        const [, , imgW, imgH] = gm.vb.split(' ');
-        const image = svg('image', { href: gm.img, width: imgW, height: imgH });
-        svgEl.append(image);
-        function showCard(m) {
-            const titleEl = h('div', { className: 'dt' }, [m.title]);
-            const bodyEl = h('div', { className: 'db' }, [m.body]);
-            card.innerHTML = '';
-            card.append(titleEl, bodyEl);
-            card.classList.remove('hidden');
-        }
-        for (const m of gm.markers) {
-            const circle = svg('circle', { class: 'pi', r: 12, fill: '#231d09', stroke: '#8a6428', 'stroke-width': 1.5 });
-            const text = svg('text', {
-                class: 'pn',
-                'text-anchor': 'middle',
-                'dominant-baseline': 'middle',
-                'font-size': 12,
-                'font-weight': 'bold',
-                fill: '#c89030',
-            }, [String(m.i)]);
-            const g = svg('g', { class: 'loc', tabindex: 0, 'data-mx': m.x, 'data-my': m.y, style: 'cursor:pointer;outline:none' }, [circle, text]);
-            g.addEventListener('mouseenter', () => showCard(m));
-            g.addEventListener('mouseleave', () => {
-                card.classList.add('hidden');
-            });
-            svgEl.append(g);
-        }
-        svgEls.push(svgEl);
-        const mapDiv = h('div', {
-            className: 'sm relative bg-void w-full mb-4 hidden',
-        }, [svgEl, card]);
-        mapDiv.dataset.mapId = gm.id;
-        mapDivs.push(mapDiv);
-        mapDiv.addEventListener('mousemove', (e) => {
-            const me = e;
-            if (card.classList.contains('hidden'))
-                return;
-            const pad = 16;
-            let x = me.clientX + pad;
-            let y = me.clientY + pad;
-            card.style.left = x + 'px';
-            card.style.top = y + 'px';
-            const cw = card.offsetWidth;
-            const ch = card.offsetHeight;
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
-            if (x + cw > vw)
-                x = me.clientX - cw - pad;
-            if (y + ch > vh)
-                y = me.clientY - ch - pad;
-            card.style.left = Math.max(0, x) + 'px';
-            card.style.top = Math.max(0, y) + 'px';
-        });
-        container.append(mapDiv);
-    }
-    container.addEventListener('mousemove', (e) => {
-        if (!coordTracking) {
-            coordDisplay.classList.add('hidden');
-            return;
-        }
-        const me = e;
-        const target = me.target;
-        const svgTarget = target.closest('svg.smap');
-        if (!svgTarget) {
-            coordDisplay.classList.add('hidden');
-            return;
-        }
-        const pt = svgTarget.createSVGPoint();
-        pt.x = me.clientX;
-        pt.y = me.clientY;
-        const ctm = svgTarget.getScreenCTM();
-        if (!ctm)
-            return;
-        const cursor = pt.matrixTransform(ctm.inverse());
-        coordDisplay.textContent = `${Math.round(cursor.x)}, ${Math.round(cursor.y)}`;
-        coordDisplay.classList.remove('hidden');
-        const pad = 14;
-        let x = me.clientX + pad;
-        let y = me.clientY + pad;
-        if (x + coordDisplay.offsetWidth > window.innerWidth)
-            x = me.clientX - coordDisplay.offsetWidth - pad;
-        if (y + coordDisplay.offsetHeight > window.innerHeight)
-            y = me.clientY - coordDisplay.offsetHeight - pad;
-        coordDisplay.style.left = Math.max(0, x) + 'px';
-        coordDisplay.style.top = Math.max(0, y) + 'px';
-    });
-    function updateScales() {
-        svgEls.forEach((svgEl) => {
-            const ctm = svgEl.getScreenCTM();
-            if (!ctm)
-                return;
-            const scale = Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b);
-            if (!scale)
-                return;
-            const inv = 1 / scale;
-            svgEl.querySelectorAll('.loc').forEach((g) => {
-                const mx = g.dataset.mx;
-                const my = g.dataset.my;
-                g.setAttribute('transform', `translate(${mx},${my}) scale(${inv})`);
-            });
-        });
-    }
-    window.addEventListener('resize', updateScales);
-    if (maps.length) {
-        select.value = maps[0].id;
-        showMap(maps[0].id);
-    }
-    return container;
+    renderMaps();
+    return h('div', {}, [
+        h('div', { className: 'flex flex-wrap gap-3 items-center mb-3' }, [select, form]),
+        empty,
+        image,
+    ]);
 }

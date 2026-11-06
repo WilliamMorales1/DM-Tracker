@@ -1,10 +1,3 @@
-// ingest-lore downloads the "Out of the Abyss" adventure text from the
-// 5etools data mirror, chunks it by section, embeds each chunk, and loads
-// it into the chapter_chunks table backing Lore Search.
-//
-// Run manually (requires network access and a running Ollama instance):
-//
-//	go run ./cmd/ingest-lore
 package main
 
 import (
@@ -13,22 +6,34 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"oota/internal/db"
-	"oota/internal/embeddings"
+	"tracker/internal/db"
+	"tracker/internal/embeddings"
 )
 
-const defaultSourceURL = "https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/adventure/adventure-oota.json"
-const maxChunkChars = 1000
+// default to Strahd since it's the most popular
+const (
+	defaultSourceURL = "https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/adventure/adventure-cos.json"
+	maxChunkChars    = 1000
+)
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 
-type adventureFile struct {
+type sourceFile struct {
+	Data          []section     `json:"data"`
+	BookData      []bookContent `json:"bookData"`
+	AdventureData []bookContent `json:"adventureData"`
+}
+
+type bookContent struct {
+	Name string    `json:"name"`
+	ID   string    `json:"id"`
 	Data []section `json:"data"`
 }
 
@@ -38,8 +43,26 @@ type section struct {
 	Entries []any  `json:"entries"`
 }
 
-var reTag = regexp.MustCompile(`\{@\w+ ([^}|]+)(\|[^}]*)?\}`)
-var reWS = regexp.MustCompile(`\s+`)
+var (
+	reTag = regexp.MustCompile(`\{@\w+ ([^}|]+)(\|[^}]*)?\}`)
+	reWS  = regexp.MustCompile(`\s+`)
+)
+
+func rawGitHubURL(source string) string {
+	u, err := url.Parse(source)
+	if err != nil || u.Host != "github.com" {
+		return source
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 5 || parts[2] != "blob" {
+		return source
+	}
+	u.Host = "raw.githubusercontent.com"
+	u.Path = "/" + strings.Join(append(parts[:2], parts[3:]...), "/")
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
+}
 
 func cleanText(s string) string {
 	s = reTag.ReplaceAllString(s, "$1")
@@ -116,12 +139,13 @@ func chunk(paragraphs []string) []string {
 }
 
 func main() {
-	sourceURL := flag.String("source", defaultSourceURL, "URL of the adventure JSON to ingest")
-	dbPath := flag.String("db", "oota.db", "path to the sqlite database")
+	sourceURL := flag.String("source", defaultSourceURL, "URL of a 5etools adventure or book JSON (raw or GitHub blob URL)")
+	dbPath := flag.String("db", "tracker.db", "path to the sqlite database")
 	flag.Parse()
 
-	log.Printf("fetching %s", *sourceURL)
-	resp, err := httpClient.Get(*sourceURL)
+	resolvedURL := rawGitHubURL(*sourceURL)
+	log.Printf("fetching %s", resolvedURL)
+	resp, err := httpClient.Get(resolvedURL)
 	if err != nil {
 		log.Fatalf("fetch: %v", err)
 	}
@@ -129,9 +153,19 @@ func main() {
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("fetch: status %s", resp.Status)
 	}
-	var af adventureFile
-	if err := json.NewDecoder(resp.Body).Decode(&af); err != nil {
+	var source sourceFile
+	if err := json.NewDecoder(resp.Body).Decode(&source); err != nil {
 		log.Fatalf("decode: %v", err)
+	}
+	sections := source.Data
+	for _, adventure := range source.AdventureData {
+		sections = append(sections, adventure.Data...)
+	}
+	for _, book := range source.BookData {
+		sections = append(sections, book.Data...)
+	}
+	if len(sections) == 0 {
+		log.Fatalf("decode: no adventure or book sections found")
 	}
 
 	conn, err := db.Open(*dbPath)
@@ -149,7 +183,7 @@ func main() {
 		content      string
 	}
 	var jobs []job
-	for _, sec := range af.Data {
+	for _, sec := range sections {
 		var paragraphs []string
 		flatten(sec.Entries, "", &paragraphs)
 		for _, c := range chunk(paragraphs) {

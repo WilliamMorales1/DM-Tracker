@@ -5,8 +5,6 @@ async function getJSON(url) {
     return res.json();
 }
 export const api = {
-    sessions: () => getJSON('/api/sessions'),
-    demonLords: () => getJSON('/api/demon-lords'),
     actions: () => getJSON('/api/actions'),
     skillAreas: () => getJSON('/api/skill-areas'),
     conditions: () => getJSON('/api/conditions'),
@@ -17,6 +15,15 @@ export const api = {
     spells: () => getJSON('/api/spells'),
     spell: (id) => getJSON(`/api/spells/${id}`),
     maps: () => getJSON('/api/maps'),
+    createMap: async (name, image) => {
+        const body = new FormData();
+        body.set('name', name);
+        body.set('image', image);
+        const res = await fetch('/api/maps', { method: 'POST', body });
+        if (!res.ok)
+            throw new Error(await res.text());
+        return res.json();
+    },
     search: (q) => getJSON(`/api/search?q=${encodeURIComponent(q)}`),
     chat: (q, model) => getJSON(`/api/chat?q=${encodeURIComponent(q)}&model=${encodeURIComponent(model)}`),
     ollamaModels: () => getJSON('/api/ollama-models'),

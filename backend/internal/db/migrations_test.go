@@ -12,12 +12,12 @@ func TestMigrationsCanResetAndReapply(t *testing.T) {
 	if err := RunMigrations(migrationsDir, dbPath); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
-	assertMigrationVersion(t, dbPath, 12)
+	assertMigrationVersion(t, dbPath, 13)
 
 	if err := ResetMigrations(migrationsDir, dbPath); err != nil {
 		t.Fatalf("reset migrations: %v", err)
 	}
-	assertMigrationVersion(t, dbPath, 12)
+	assertMigrationVersion(t, dbPath, 13)
 }
 
 func assertMigrationVersion(t *testing.T, dbPath string, want int) {

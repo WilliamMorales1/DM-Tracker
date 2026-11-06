@@ -306,7 +306,7 @@ func (q *Queries) ListMonsterStats(ctx context.Context) ([]ListMonsterStatsRow, 
 }
 
 const listMonsters = `
-SELECT id, name, type, cr, COALESCE(image_url, '') AS image_url
+SELECT id, name, type, cr, COALESCE(image_url, '') AS image_url, COALESCE(source, '') AS source
 FROM Monsters
 ORDER BY
   CASE cr WHEN '1/8' THEN 0.125 WHEN '1/4' THEN 0.25 WHEN '1/2' THEN 0.5
@@ -320,6 +320,7 @@ type ListMonstersRow struct {
 	Type     sql.NullString
 	Cr       sql.NullString
 	ImageUrl string
+	Source   string
 }
 
 func (q *Queries) ListMonsters(ctx context.Context) ([]ListMonstersRow, error) {
@@ -337,6 +338,7 @@ func (q *Queries) ListMonsters(ctx context.Context) ([]ListMonstersRow, error) {
 			&i.Type,
 			&i.Cr,
 			&i.ImageUrl,
+			&i.Source,
 		); err != nil {
 			return nil, err
 		}
@@ -785,7 +787,7 @@ func (q *Queries) UpsertSpell(ctx context.Context, arg UpsertSpellParams) error 
 	return err
 }
 
-const listSpells = `SELECT id, name, level, school, COALESCE(classes, '') AS classes FROM Spells ORDER BY level, name`
+const listSpells = `SELECT id, name, level, school, COALESCE(classes, '') AS classes, COALESCE(source, '') AS source FROM Spells ORDER BY level, name`
 
 type ListSpellsRow struct {
 	ID      int64
@@ -793,6 +795,7 @@ type ListSpellsRow struct {
 	Level   int64
 	School  sql.NullString
 	Classes string
+	Source  string
 }
 
 func (q *Queries) ListSpells(ctx context.Context) ([]ListSpellsRow, error) {
@@ -804,7 +807,7 @@ func (q *Queries) ListSpells(ctx context.Context) ([]ListSpellsRow, error) {
 	var items []ListSpellsRow
 	for rows.Next() {
 		var i ListSpellsRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.Level, &i.School, &i.Classes); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name, &i.Level, &i.School, &i.Classes, &i.Source); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

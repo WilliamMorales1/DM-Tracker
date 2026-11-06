@@ -131,7 +131,9 @@ export async function monstersPanel() {
     }
     const detail = h('div', { className: 'mt-3' }, []);
     const types = Array.from(new Set(list.map((m) => baseType(m.type)).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const sources = Array.from(new Set(list.map((m) => m.source).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     let typeFilter = '';
+    let sourceFilter = '';
     let selectSeq = 0;
     let selectedName = null;
     async function selectMonster(m) {
@@ -152,7 +154,7 @@ export async function monstersPanel() {
         search: (query) => {
             const q = query.toLowerCase();
             return list
-                .filter((m) => (typeFilter === '' || baseType(m.type) === typeFilter) && (q === '' || m.name.toLowerCase().includes(q)))
+                .filter((m) => (typeFilter === '' || baseType(m.type) === typeFilter) && (sourceFilter === '' || m.source === sourceFilter) && (q === '' || m.name.toLowerCase().includes(q)))
                 .slice()
                 .sort((a, b) => a.name.localeCompare(b.name));
         },
@@ -172,6 +174,14 @@ export async function monstersPanel() {
             refreshSuggestions();
         },
     }, [h('option', { value: '' }, ['All Types']), ...types.map((t) => h('option', { value: t }, [t]))]);
-    const root = h('div', {}, [h('div', { className: 'flex gap-2 mb-2' }, [nameInput, typeSelect]), detail]);
+    const sourceSelect = h('select', {
+        className: 'form-select w-auto',
+        'aria-label': 'Filter monsters by source',
+        onchange: (e) => {
+            sourceFilter = e.target.value;
+            refreshSuggestions();
+        },
+    }, [h('option', { value: '' }, ['All Sources']), ...sources.map((s) => h('option', { value: s }, [s]))]);
+    const root = h('div', {}, [h('div', { className: 'flex gap-2 mb-2' }, [nameInput, typeSelect, sourceSelect]), detail]);
     return registerPanel(root, { getTitle: () => selectedName });
 }

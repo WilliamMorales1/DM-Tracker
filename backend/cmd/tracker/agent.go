@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"oota/internal/embeddings"
+	"tracker/internal/embeddings"
 )
 
 const ollamaURL = "http://localhost:11434/v1/chat/completions"
@@ -24,12 +24,11 @@ const ollamaTagsURL = "http://localhost:11434/api/tags"
 var ollamaClient = &http.Client{Timeout: 60 * time.Second}
 var toolClient = &http.Client{Timeout: 15 * time.Second}
 
-const systemPrompt = `You are a D&D Dungeon Master assistant for "Out of the Abyss".
-Use the search and sql tools to answer questions about the campaign. Use lore_search for narrative/story lore from chapter text. Use web_search for general knowledge not in the database.
+const systemPrompt = `You are a D&D Dungeon Master assistant.
+Use the search and sql tools to answer questions about the game. Use lore_search for narrative/story lore from available text. Use web_search for general knowledge not in the database.
 
 Database schema:
   Monsters(id, name, type, cr, hp, hp_formula, ac, ac_desc, speed, str, dex, con, int_score, wis, cha, saving_throws, damage_resistances, damage_immunities, condition_immunities, senses, languages, traits, actions, legendary_actions, notes)
-  Sessions(id, session_num, title, chapters, level_start, level_end, summary, checkpoint)
 
 Strict rules:
     No articles (the, a, an).
@@ -42,7 +41,7 @@ Strict rules:
 	Always use a tool to look up information before answering. 
 
 Response style:
-"Demogorgon. CR 26. Legendary. See stats below." NOT "Demogorgon is a very powerful demon lord with a challenge rating of 26 and several legendary actions you should be aware of."`
+"Adult red dragon. CR 17. Legendary. See stats below." NOT "An adult red dragon is a very powerful creature with a challenge rating of 17 and several legendary actions you should be aware of."`
 
 type chatMsg struct {
 	Role       string     `json:"role"`

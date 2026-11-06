@@ -59,20 +59,6 @@ async function conditionsView() {
             : []),
     ]);
 }
-async function demonLordsView() {
-    const demonLords = (await api.demonLords());
-    const columns = [
-        { header: 'Name', render: (d) => d.name, sortValue: (d) => d.name },
-        { header: 'Dominions', render: (d) => d.dominions, sortValue: (d) => d.dominions },
-        { header: 'Epithets', render: (d) => d.epithets, sortValue: (d) => d.epithets },
-        { header: 'Layer', render: (d) => d.layer, sortValue: (d) => d.layer },
-        { header: 'Description', render: (d) => d.description, sortValue: (d) => d.description },
-        { header: 'Servants', render: (d) => d.servants, sortValue: (d) => d.servants },
-        { header: 'Component', render: (d) => d.component, sortValue: (d) => d.component },
-        { header: 'Component Location', render: (d) => d.componentLocation, sortValue: (d) => d.componentLocation },
-    ];
-    return dataTable(columns, demonLords, 'No demon lords found.');
-}
 async function rangesView() {
     return h('div', {}, [
         h('img', {
@@ -85,7 +71,6 @@ async function rangesView() {
 const REFS = [
     { id: 'actions', title: 'Actions', load: actionsView },
     { id: 'conditions', title: 'Conditions', load: conditionsView },
-    { id: 'demon-lords', title: 'Demon Lords', load: demonLordsView },
     { id: 'ranges', title: 'Ranges', load: rangesView },
 ];
 export async function refsPanel() {
