@@ -1,143 +1,139 @@
 # DM Tracker
 
-Local web app for managing D&D games. Includes searchable monster and spell catalogs, initiative tracking, notes, custom maps with markers, quick-reference tables, and optional Ollama-powered chat and lore search.
+Local D&D game tracker. Stores monsters, spells, notes, initiative presets, and maps in SQLite. Optional features use Ollama for chat and lore search.
 
 ## Features
 
-- **Monsters** — searchable bestiary with stat blocks, filters, and token images
-- **Spells** — searchable spell catalog
-- **Initiative** — combat tracker with rounds, hit points, and saved presets
-- **Maps** — upload PNG, JPEG, or WebP maps; add labeled markers with notes
-- **Notes** — Markdown editor with preview; notes are stored locally
-- **Ask Agent** — chat with an Ollama model that can query tracker data
-- **Lore Search** — semantic search over imported adventure or book text
-- **References** — quick-reference tables for actions, conditions, skills, and ranges
-- **Migrations** — SQLite schema is applied automatically at startup
+- Monster and spell catalogs
+- Initiative tracker with saved presets
+- Maps with uploaded images and markers
+- Markdown notes
+- Quick references for actions, conditions, skills, and ranges
+- Optional Ollama chat and lore search
 
 ## Requirements
 
 - Go 1.26.4 or newer
 - GNU Make
-- Modern browser with native ES module support
-- Ollama running locally at `http://localhost:11434` for Ask Agent and Lore Search
-  - Chat model with tool-calling support, selected in Ask Agent
-  - `nomic-embed-text-v2-moe` for lore embeddings
+- Modern browser with ES module support
+- Ollama at `http://localhost:11434` for chat and lore search
+  - Chat model with tool-calling support
+  - `nomic-embed-text-v2-moe` for lore search
 
-Ollama is optional if chat and lore search are not needed. SQLite is embedded; no separate database service is required.
+Ollama is not needed for other features. SQLite is built into the app.
 
-## Setup
+## Run
 
-Build and run from repository root:
+From repository root:
 
 ```sh
 make build
 make run
 ```
 
-App listens at `http://localhost:8080`. The database is created at `backend/tracker.db`. Run commands from repository root; server expects `backend/` as its working directory.
+Open `http://localhost:8080`. Database file is `backend/tracker.db`.
 
-For development without building a binary:
+For development, run without building binary:
 
 ```sh
 make dev
 ```
 
-`make build-frontend` checks required static frontend files. `make build-backend` builds `backend/tracker`. Frontend uses plain JavaScript and CSS without a package manager or build step. Vendored Markdown and Monaco files support offline use.
+Frontend uses browser JavaScript and CSS. No frontend package manager or build step is needed. Browser dependencies are in `frontend/vendor/`.
 
-## Importing data
+## Import data
 
-Data imports are optional and require network access. Run commands from repository root:
+Imports need network access. Run commands from `backend/`.
+
+Import default monster sources (`mm,xmm`):
 
 ```sh
 cd backend
 go run ./cmd/ingest-5etools
 ```
 
-This imports the default monster sources (`mm,xmm`) and their available images. Add source codes with `-source`, or import every indexed bestiary with `-all`:
+Add sources with `-source`, or import every indexed bestiary with `-all`:
 
 ```sh
 go run ./cmd/ingest-5etools -source mm,xmm,mtf
-# or
 go run ./cmd/ingest-5etools -all
 ```
 
-Importing lore replaces existing lore-search chunks. Ollama must be running with the embedding model pulled:
+Importing lore replaces existing lore-search data. Start Ollama and pull the embedding model first:
 
 ```sh
 go run ./cmd/ingest-lore
 ```
 
-Default lore source is 5etools' Curse of Strahd adventure JSON. Choose another compatible adventure or book JSON by passing a raw URL or GitHub blob URL:
+Default lore source is 5etools' Curse of Strahd JSON. Use `-source` to choose another adventure or book JSON. Raw URLs and GitHub blob URLs are supported:
 
 ```sh
 go run ./cmd/ingest-lore -source 'https://github.com/OWNER/REPO/blob/BRANCH/path/to/source.json'
 ```
 
-Both import commands accept `-db` to choose a SQLite database path. Run them from `backend/` so default database path resolves correctly.
+Both import commands accept `-db` to specify database path. Run commands from `backend/` to use default path `tracker.db`.
 
-## Local data
+## Local files
 
-- `backend/tracker.db` — SQLite database, gitignored
-- `backend/notes/` — Markdown notes, gitignored
-- `backend/maps/` — uploaded map images, gitignored
-- `backend/images/` — static app images; user-supplied `.webp` map art is gitignored
+- `backend/tracker.db` — database, ignored by Git
+- `backend/notes/` — notes, ignored by Git
+- `backend/maps/` — uploaded maps, ignored by Git
+- `backend/images/` — static app images; user-supplied WebP maps are ignored by Git
 
-Notes created or edited in the app are written to `backend/notes/`. Back up database and local files separately if needed.
+Notes made in app are saved in `backend/notes/`. Back up database and local files separately.
 
-## Tests and utilities
+## Tests and tools
 
-Run headless Chromium UI tests (requires Chromium):
+UI tests require Chromium:
 
 ```sh
 make test-ui
 ```
 
-Run optional frontend logic tests directly with Node.js:
+Frontend logic tests require Node.js:
 
 ```sh
 node --test frontend/test/*.test.mjs
 ```
 
-Plot map coordinates for diagnostics:
+Plot map coordinates:
 
 ```sh
 make plot MAP=<map-id>
 ```
 
-Other targets: `make clean` removes the built binary and temporary files.
+`make clean` removes built binary and temporary files.
 
-## Database migrations
+## Migrations
 
-Numbered SQL migrations live in `backend/migrations/`. The startup migration runner in `backend/internal/db/` applies pending migrations in transactions and uses the `schema_migrations` table, compatible with databases created by golang-migrate.
+SQLite migrations are in `backend/migrations/`. App applies pending migrations on startup.
 
-Normal startup applies pending migrations automatically. `make migrate` resets and reapplies migrations against `backend/tracker.db`; this is destructive and drops stored tracker data. Back up database before running it.
+`make migrate` resets and reapplies migrations against `backend/tracker.db`. This deletes stored tracker data. Back up database first.
 
-## Project structure
+## Project files
 
 ```text
-backend/
-  cmd/tracker/       HTTP server, API, and Ollama chat agent
-  cmd/migrate/       destructive migration reset utility
-  cmd/ingest-5etools/ monster data importer
-  cmd/ingest-lore/   adventure/book text and embedding importer
-  cmd/plot/          map-coordinate diagnostic tool
-  internal/db/       SQLite access and migration runner
-  internal/          embedding client
-  migrations/        numbered SQLite migrations
-  e2e/               Chromium UI tests
-  notes/             local Markdown notes (gitignored)
-  maps/              uploaded maps (gitignored)
-frontend/
-  app/               browser modules and panels
-  vendor/            checked-in browser dependencies
-  test/              optional Node.js logic tests
-Makefile             build, run, test, and utility targets
+backend/cmd/tracker/       HTTP server, API, chat agent
+backend/cmd/migrate/       migration reset utility
+backend/cmd/ingest-5etools/ monster importer
+backend/cmd/ingest-lore/   lore importer
+backend/cmd/plot/          map coordinate tool
+backend/internal/db/       database access and migrations
+backend/internal/          embedding client
+backend/migrations/        SQLite migrations
+backend/e2e/               Chromium UI tests
+backend/notes/             local notes (ignored by Git)
+backend/maps/              uploaded maps (ignored by Git)
+frontend/app/              browser modules and panels
+frontend/vendor/           browser dependencies
+frontend/test/             Node.js tests
+Makefile                   build and run commands
 ```
 
 ## Disclaimer
 
-Unofficial fan tool for Dungeons & Dragons. Dungeons & Dragons and related marks are trademarks of Wizards of the Coast. This project is not affiliated with or endorsed by Wizards of the Coast. Imported 5etools data, adventure text, and user-supplied maps are not included under this project's license.
+Unofficial D&D fan tool. Dungeons & Dragons and related marks belong to Wizards of the Coast. This project is not affiliated with Wizards of the Coast. Imported 5etools data, adventure text, and user maps are not included under this project's license.
 
 ## License
 
-Code is released under the [MIT License](LICENSE). Vendored libraries under `frontend/vendor/` retain their own licenses. Imported content and user-supplied assets are not covered by this license.
+Code uses the [MIT License](LICENSE). Vendored libraries in `frontend/vendor/` keep their own licenses. Imported content and user-supplied assets are not covered by this license.
