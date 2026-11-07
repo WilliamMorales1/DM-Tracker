@@ -75,10 +75,10 @@ Both import commands accept `-db` to specify database path. Run commands from `b
 
 ## Local files
 
-- `backend/tracker.db` — database, ignored by Git
-- `backend/notes/` — notes, ignored by Git
-- `backend/maps/` — uploaded maps, ignored by Git
-- `backend/images/` — static app images; user-supplied WebP maps are ignored by Git
+- `backend/tracker.db`: database, ignored by Git
+- `backend/notes/`: notes, ignored by Git
+- `backend/maps/`: uploaded maps, ignored by Git
+- `backend/images/`: static app images; user-supplied WebP maps are ignored by Git
 
 Notes made in app are saved in `backend/notes/`. Back up database and local files separately.
 

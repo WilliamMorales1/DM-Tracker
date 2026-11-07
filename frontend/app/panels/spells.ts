@@ -55,6 +55,8 @@ export async function spellsPanel() {
     let levelFilter = '';
     let selectSeq = 0;
     let selectedName = null;
+    const url = new URL(window.location.href);
+    const savedSearch = url.searchParams.get('spellQuery') || '';
     async function selectSpell(s) {
         const seq = ++selectSeq;
         detail.innerHTML = '';
@@ -64,6 +66,9 @@ export async function spellsPanel() {
             return;
         mount(detail, spellStatBlock(full));
         selectedName = full.name;
+        const url = new URL(window.location.href);
+        url.searchParams.set('spell', full.name);
+        window.history.replaceState(null, '', url);
         setTitle(selectedName, 'Spells');
     }
     const { input: nameInput, refresh: refreshSuggestions } = autocomplete({
@@ -87,6 +92,14 @@ export async function spellsPanel() {
             ]),
         ],
         onSelect: selectSpell,
+    });
+    nameInput.value = savedSearch;
+    nameInput.addEventListener('input', () => {
+        const url = new URL(window.location.href);
+        if (nameInput.value) url.searchParams.set('spellQuery', nameInput.value);
+        else url.searchParams.delete('spellQuery');
+        url.searchParams.delete('spell');
+        window.history.replaceState(null, '', url);
     });
     const schoolSelect = h('select', {
         className: 'form-select w-auto',
@@ -119,5 +132,10 @@ export async function spellsPanel() {
         h('div', { className: 'flex gap-2 mb-2' }, [nameInput, schoolSelect, levelSelect, sourceSelect]),
         detail,
     ]);
+    const savedSpell = url.searchParams.get('spell');
+    if (savedSpell) {
+        const match = list.find((spell) => spell.name === savedSpell);
+        if (match) void selectSpell(match);
+    }
     return registerPanel(root, { getTitle: () => selectedName });
 }

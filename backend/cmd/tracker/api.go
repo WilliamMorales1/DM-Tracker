@@ -620,13 +620,14 @@ func syncNotesFromDisk(ctx context.Context) error {
 }
 
 func handleAPINotesList(w http.ResponseWriter, r *http.Request) {
-	names, err := q.ListNoteNames(r.Context())
+	files, err := filepath.Glob(filepath.Join(notesDir, "*.md"))
 	if err != nil {
 		httpError(w, r, 500, err.Error(), err)
 		return
 	}
-	if names == nil {
-		names = []string{}
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		names = append(names, filepath.Base(file))
 	}
 	writeJSON(w, names)
 }

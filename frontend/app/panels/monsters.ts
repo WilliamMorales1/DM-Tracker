@@ -60,10 +60,10 @@ function monsterStatBlock(m, onScale, baseCr) {
                             onchange: onScale,
                         }, CR_OPTIONS.map((cr) => h('option', { value: cr, selected: cr === m.cr }, [`CR ${cr}${cr === baseCr ? ' (actual)' : ''}`]))),
                     ]),
-                    h('div', { className: 'italic text-gray-400 mb-2' }, [headerLine || '—']),
+                    h('div', { className: 'italic text-gray-400 mb-2' }, [headerLine || 'N/A']),
                     h('div', {}, [h('strong', {}, ['Armor Class. ']), `${m.ac}${m.acDesc ? ` (${m.acDesc})` : ''}`]),
                     h('div', {}, [h('strong', {}, ['Hit Points. ']), `${m.hp}${m.hpFormula ? ` (${m.hpFormula})` : ''}`]),
-                    h('div', { className: 'mb-2' }, [h('strong', {}, ['Speed. ']), m.speed || '—']),
+                    h('div', { className: 'mb-2' }, [h('strong', {}, ['Speed. ']), m.speed || 'N/A']),
                     h('div', { className: 'flex gap-3 my-3 border-t border-b border-gray-600 py-2' }, [
                         abilityScore('STR', m.str),
                         abilityScore('DEX', m.dex),
@@ -82,8 +82,8 @@ function monsterStatBlock(m, onScale, baseCr) {
                         h('strong', {}, ['Senses. ']),
                         [m.senses, `passive Perception ${m.passivePerception}`].filter(Boolean).join(', '),
                     ]),
-                    statRow('Languages', m.languages || '—'),
-                    h('div', { className: 'mb-2' }, [h('strong', {}, ['Challenge. ']), `${m.cr || '—'}`]),
+                    statRow('Languages', m.languages || 'N/A'),
+                    h('div', { className: 'mb-2' }, [h('strong', {}, ['Challenge. ']), `${m.cr || 'N/A'}`]),
                     statRow('Environment', m.environment),
                     h('div', { className: 'text-sm text-gray-400' }, [m.source ? `Source: ${m.source}` : '']),
                 ]),
@@ -136,6 +136,8 @@ export async function monstersPanel() {
     let sourceFilter = '';
     let selectSeq = 0;
     let selectedName = null;
+    const url = new URL(window.location.href);
+    const savedSearch = url.searchParams.get('monsterQuery') || '';
     async function selectMonster(m) {
         const seq = ++selectSeq;
         detail.innerHTML = '';
@@ -145,6 +147,9 @@ export async function monstersPanel() {
             return;
         mount(detail, monsterDetailView(full));
         selectedName = full.name;
+        const url = new URL(window.location.href);
+        url.searchParams.set('monster', full.name);
+        window.history.replaceState(null, '', url);
         setTitle(selectedName, 'Monsters');
     }
     const { input: nameInput, refresh: refreshSuggestions } = autocomplete({
@@ -166,6 +171,14 @@ export async function monstersPanel() {
         ],
         onSelect: selectMonster,
     });
+    nameInput.value = savedSearch;
+    nameInput.addEventListener('input', () => {
+        const url = new URL(window.location.href);
+        if (nameInput.value) url.searchParams.set('monsterQuery', nameInput.value);
+        else url.searchParams.delete('monsterQuery');
+        url.searchParams.delete('monster');
+        window.history.replaceState(null, '', url);
+    });
     const typeSelect = h('select', {
         className: 'form-select w-auto',
         'aria-label': 'Filter monsters by type',
@@ -183,5 +196,10 @@ export async function monstersPanel() {
         },
     }, [h('option', { value: '' }, ['All Sources']), ...sources.map((s) => h('option', { value: s }, [s]))]);
     const root = h('div', {}, [h('div', { className: 'flex gap-2 mb-2' }, [nameInput, typeSelect, sourceSelect]), detail]);
+    const savedMonster = url.searchParams.get('monster');
+    if (savedMonster) {
+        const match = list.find((monster) => monster.name === savedMonster);
+        if (match) void selectMonster(match);
+    }
     return registerPanel(root, { getTitle: () => selectedName });
 }

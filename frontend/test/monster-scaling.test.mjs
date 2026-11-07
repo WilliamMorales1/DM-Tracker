@@ -91,3 +91,14 @@ test('scaleMonster rescales to-hit and damage numbers in entry text', () => {
     assert.match(text, /to hit/);
     assert.match(text, /slashing damage/);
 });
+test('scaleMonster keeps HP proportional for creatures below their CR band', () => {
+    const boss = baseMonster({ cr: '25', hp: 500, ac: 20 });
+    const scaled = scaleMonster(boss, 23);
+    assert.equal(scaled.hp, Math.round((500 * 513) / 603));
+    assert.equal(scaled.ac, 20);
+});
+test('scaleMonster never drops a below-band creature far under the target band', () => {
+    const boss = baseMonster({ cr: '21', hp: 345 });
+    const scaled = scaleMonster(boss, 20);
+    assert.ok(scaled.hp > 300, `expected HP > 300, got ${scaled.hp}`);
+});

@@ -138,15 +138,13 @@ function rangeOf(table, crNumber) {
     const key = numberToCr(crNumber);
     return table[key] ?? table[String(Math.round(crNumber))] ?? [0, 0];
 }
-// Maps `value` from its position within crIn's range to the same relative
-// position within crOut's range - the core trick behind the DMG table lookup.
-function scaleByRange(table, crIn, crOut, value) {
-    const [minIn, maxIn] = rangeOf(table, crIn);
-    const [minOut, maxOut] = rangeOf(table, crOut);
-    if (maxIn === minIn)
-        return value;
-    const ratio = (value - minIn) / (maxIn - minIn);
-    return minOut + ratio * (maxOut - minOut);
+// Scales `value` by the ratio of the target CR's band midpoint to the source
+// CR's. Position-in-band extrapolation breaks for creatures whose stats sit
+// outside their CR band (e.g. WoW bosses with HP far below the band).
+function scaleByMidpoint(table, crIn, crOut, value) {
+  const midIn = midpoint(rangeOf(table, crIn));
+  const midOut = midpoint(rangeOf(table, crOut));
+  return midIn > 0 ? (value * midOut) / midIn : value;
 }
 function midpoint([a, b]) {
     return (a + b) / 2;
@@ -197,7 +195,7 @@ export function scaleMonster(base, targetCrNumber) {
     const pbIn = crToPb(crInNumber);
     const pbOut = crToPb(targetCrNumber);
     const pbDelta = pbOut - pbIn;
-    const newHp = Math.max(1, Math.round(scaleByRange(CR_HP_RANGES, crInNumber, targetCrNumber, base.hp)));
+    const newHp = Math.max(1, Math.round(scaleByMidpoint(CR_HP_RANGES, crInNumber, targetCrNumber, base.hp)));
     const newAc = base.ac + Math.round((CR_AC[numberToCr(targetCrNumber)] ?? base.ac) - (CR_AC[numberToCr(crInNumber)] ?? base.ac));
     const dprIn = midpoint(rangeOf(CR_DPR_RANGES, crInNumber));
     const dprOut = midpoint(rangeOf(CR_DPR_RANGES, targetCrNumber));

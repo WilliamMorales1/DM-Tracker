@@ -48,6 +48,9 @@ type spellcastingBlock struct {
 	Spells        map[string]any    `json:"spells"`
 	Will          []json.RawMessage `json:"will"`
 	Daily         map[string]any    `json:"daily"`
+	Rest          map[string]any    `json:"rest"`
+	Weekly        map[string]any    `json:"weekly"`
+	Monthly       map[string]any    `json:"monthly"`
 }
 
 type statValue int
@@ -315,21 +318,34 @@ func spellcastingToJSON(blocks []spellcastingBlock) string {
 			}
 		}
 		if len(b.Will) > 0 {
-			var names []string
+			var entries []any
 			for _, raw := range b.Will {
-				var spell string
-				if err := json.Unmarshal(raw, &spell); err == nil {
-					names = append(names, cleanText(spell))
-					continue
-				}
-				var entry struct {
-					Entry string `json:"entry"`
-				}
-				if err := json.Unmarshal(raw, &entry); err == nil && entry.Entry != "" {
-					names = append(names, cleanText(entry.Entry))
+				var entry any
+				if json.Unmarshal(raw, &entry) == nil {
+					entries = append(entries, entry)
 				}
 			}
-			parts = append(parts, "At will: "+strings.Join(names, ", "))
+			if text := flattenEntries(entries); text != "" {
+				parts = append(parts, "At will: "+strings.ReplaceAll(text, "\n", ", "))
+			}
+		}
+		for _, uses := range []struct {
+			label string
+			lists map[string]any
+		}{{"day", b.Daily}, {"rest", b.Rest}, {"week", b.Weekly}, {"month", b.Monthly}} {
+			keys := slices.Sorted(maps.Keys(uses.lists))
+			for _, key := range keys {
+				text := flattenEntries([]any{uses.lists[key]})
+				if text == "" {
+					continue
+				}
+				count := strings.TrimSuffix(key, "e")
+				label := count + "/" + uses.label
+				if strings.HasSuffix(key, "e") {
+					label += " each"
+				}
+				parts = append(parts, label+": "+strings.ReplaceAll(text, "\n", ", "))
+			}
 		}
 		for _, f := range b.FooterEntries {
 			if t := cleanText(f); t != "" {

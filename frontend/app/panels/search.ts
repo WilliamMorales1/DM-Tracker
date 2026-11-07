@@ -97,9 +97,12 @@ export function searchPanel() {
       next,
     );
   }
+  const initialURL = new URL(window.location.href);
+  const initialQuery = initialURL.searchParams.get("q") || "";
   const input = h("input", {
     name: "q",
     type: "text",
+    value: initialQuery,
     className: "form-control",
     placeholder: "Search lore semantically... (e.g. 'drow priestess tactics')",
     "aria-label": "Lore search query",
@@ -114,6 +117,10 @@ export function searchPanel() {
     status,
   ]);
   async function load(q) {
+    const url = new URL(window.location.href);
+    if (q) url.searchParams.set("q", q);
+    else url.searchParams.delete("q");
+    window.history.replaceState(null, "", url);
     currentQuery = q;
     current = await api.search(q);
     page = 0;
@@ -122,7 +129,7 @@ export function searchPanel() {
   onSubmitAsync(form, submitBtn, status, "Searching...", async () => {
     await load(input.value.trim());
   });
-  // Show all blocks in order on first load.
-  void load("");
+  // Restore saved query, or show all blocks on first load.
+  void load(initialQuery);
   return h("div", {}, [form, results, pager]);
 }

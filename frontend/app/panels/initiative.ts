@@ -17,12 +17,24 @@ async function loadMonsters() {
 function dexMod(dex) {
     return Math.floor((dex - 10) / 2);
 }
+// Preset names carry annotations like "(CR 16, scaled)" that are not in the bestiary.
+function baseMonsterName(name) {
+    return name.replace(/\s*\([^)]*\)\s*$/, '');
+}
 export async function initiativePanel() {
     await loadMonsters();
-    let combatants = [];
-    let nextId = 1;
-    let round = 1;
-    let turn = 0;
+    const savedCombat = (() => {
+        try {
+            return JSON.parse(new URLSearchParams(window.location.search).get('combat') || '{}');
+        }
+        catch {
+            return {};
+        }
+    })();
+    let combatants = Array.isArray(savedCombat.combatants) ? savedCombat.combatants : [];
+    let nextId = Math.max(0, ...combatants.map((combatant) => Number(combatant.id) || 0)) + 1;
+    let round = Number(savedCombat.round) || 1;
+    let turn = Number(savedCombat.turn) || 0;
     let presets = [];
     let editingId = null;
     async function loadPresets() {
@@ -36,6 +48,14 @@ export async function initiativePanel() {
         return [...combatants].sort((a, b) => b.init - a.init);
     }
     function render() {
+        const url = new URL(window.location.href);
+        if (combatants.length) {
+            url.searchParams.set('combat', JSON.stringify({ combatants, round, turn }));
+        }
+        else {
+            url.searchParams.delete('combat');
+        }
+        window.history.replaceState(null, '', url);
         root.innerHTML = '';
         document.querySelectorAll('.initiative-suggestions').forEach((el) => el.remove());
         const order = sorted();
@@ -103,7 +123,7 @@ export async function initiativePanel() {
                 if (!preset)
                     return;
                 combatants = preset.combatants.map((c) => {
-                    const monster = monsterMap.get(c.name);
+                    const monster = monsterMap.get(c.name) ?? monsterMap.get(baseMonsterName(c.name));
                     const mod = monster ? dexMod(monster.dex) : 0;
                     return {
                         id: nextId++,

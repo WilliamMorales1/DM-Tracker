@@ -42,7 +42,13 @@ export async function mapsPanel() {
         }
     }
 
-    select.addEventListener('change', () => renderMaps(select.value));
+    select.addEventListener('change', () => {
+        renderMaps(select.value);
+        const url = new URL(window.location.href);
+        if (select.value) url.searchParams.set('map', select.value);
+        else url.searchParams.delete('map');
+        window.history.replaceState(null, '', url);
+    });
     const form = h('form', {
         className: 'flex flex-wrap gap-2 items-center',
         onsubmit: async (event) => {
@@ -72,7 +78,8 @@ export async function mapsPanel() {
         h('button', { type: 'submit', className: 'btn btn-outline-warning' }, ['Add Map']),
         status,
     ]);
-    renderMaps();
+    const requestedMap = new URLSearchParams(window.location.search).get('map');
+    renderMaps(requestedMap || undefined);
     return h('div', {}, [
         h('div', { className: 'flex flex-wrap gap-3 items-center mb-3' }, [select, form]),
         empty,

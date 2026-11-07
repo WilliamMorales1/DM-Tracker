@@ -75,7 +75,7 @@ export async function notesPanel() {
     const previewBtn = h('button', {
         type: 'button',
         className: 'btn btn-outline-warning',
-    }, ['Preview']);
+    }, ['Edit']);
     const newForm = h('form', { className: 'flex gap-2 items-center' }, [
         newNameInput,
         newBtn,
@@ -83,10 +83,10 @@ export async function notesPanel() {
         newStatus,
     ]);
     const editorDiv = h('div', {
-        className: 'border border-gray-600 rounded h-[500px]',
+        className: 'border border-gray-600 rounded h-[500px] hidden',
     }, []);
     const previewDiv = h('div', {
-        className: 'border border-gray-600 rounded p-3 overflow-auto markdown-preview h-[500px] hidden',
+        className: 'border border-gray-600 rounded p-3 overflow-auto markdown-preview h-[500px]',
     }, []);
     const editor = monaco.editor.create(editorDiv, {
         language: 'markdown',
@@ -98,7 +98,7 @@ export async function notesPanel() {
     });
     let isDirty = false;
     let currentNoteName = '';
-    let isPreviewing = false;
+    let isPreviewing = true;
     editor.onDidChangeModelContent(() => {
         isDirty = true;
     });
@@ -108,24 +108,9 @@ export async function notesPanel() {
         await api.saveNote(currentNoteName, editor.getValue());
         isDirty = false;
     }
-    async function loadNote(name) {
-        await saveIfDirty();
-        currentNoteName = name;
-        isDirty = false;
-        if (isPreviewing)
-            togglePreview();
-        if (!name) {
-            editor.setValue('');
-            editor.updateOptions({ readOnly: true });
-            return;
-        }
-        const note = await api.note(name);
-        editor.setValue(note.content);
-        editor.updateOptions({ readOnly: false });
-    }
-    function togglePreview() {
-        isPreviewing = !isPreviewing;
-        if (isPreviewing) {
+    function setMode(preview) {
+        isPreviewing = preview;
+        if (preview) {
             previewDiv.innerHTML = sanitizeHtml(marked(editor.getValue()));
             editorDiv.classList.add('hidden');
             previewDiv.classList.remove('hidden');
@@ -136,6 +121,32 @@ export async function notesPanel() {
             previewDiv.classList.add('hidden');
             previewBtn.textContent = 'Preview';
         }
+    }
+    async function loadNote(name, edit = false) {
+        await saveIfDirty();
+        currentNoteName = name;
+        isDirty = false;
+        if (!name) {
+            editor.setValue('');
+            editor.updateOptions({ readOnly: true });
+            setMode(true);
+            return;
+        }
+        const note = await api.note(name);
+        editor.setValue(note.content);
+        isDirty = false;
+        editor.updateOptions({ readOnly: !edit });
+        setMode(!edit);
+    }
+    function togglePreview() {
+        if (!currentNoteName)
+            return;
+        if (!isPreviewing) {
+            setMode(true);
+            return;
+        }
+        editor.updateOptions({ readOnly: false });
+        setMode(false);
     }
     previewBtn.addEventListener('click', togglePreview);
     select.addEventListener('change', () => loadNote(select.value));
@@ -155,7 +166,7 @@ export async function notesPanel() {
         select.append(h('option', { value: name }, [name]));
         select.value = name;
         newNameInput.value = '';
-        await loadNote(name);
+        await loadNote(name, true);
     });
     const beforeUnloadHandler = () => {
         if (isDirty && currentNoteName) {
@@ -172,5 +183,10 @@ export async function notesPanel() {
         editorDiv,
         previewDiv,
     ]);
+    const preferredNote = names.find((name) => name === '00-Run-Sheet.md') ?? names[0];
+    if (preferredNote) {
+        select.value = preferredNote;
+        await loadNote(preferredNote);
+    }
     return registerPanel(root, { saveIfDirty });
 }

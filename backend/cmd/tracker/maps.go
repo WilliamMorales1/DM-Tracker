@@ -38,6 +38,15 @@ func listGameMaps(ctx context.Context) ([]gameMap, error) {
 		if err := rows.Scan(&gm.ID, &gm.Img); err != nil {
 			return nil, err
 		}
+		if !strings.HasPrefix(gm.Img, "/maps/") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join("maps", filepath.Base(gm.Img))); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
 		maps = append(maps, gm)
 	}
 	if err := rows.Err(); err != nil {

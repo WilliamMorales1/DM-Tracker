@@ -65,6 +65,31 @@ func chdirIntoTempNotesDir(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(orig) })
 }
 
+func TestHandleAPIMapsOmitsDeletedFiles(t *testing.T) {
+	setupTestDB(t)
+	workDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workDir, "maps"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+	if _, err := conn.Exec(`INSERT INTO GameMaps (id, img) VALUES (?, ?)`, "00-Deleted", "/maps/00-Deleted.png"); err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handleAPIMaps(w, httptest.NewRequest(http.MethodGet, "/api/maps", nil))
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "00-Deleted") {
+		t.Fatalf("unexpected map list: status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
 func TestHandleAPICreateMapStoresUploadedImage(t *testing.T) {
 	setupTestDB(t)
 	workDir := t.TempDir()
@@ -154,6 +179,23 @@ func TestHandleAPINoteInvalidName(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleAPINotesListOmitsDeletedDiskFiles(t *testing.T) {
+	setupTestDB(t)
+	chdirIntoTempNotesDir(t)
+	if err := q.UpsertNote(t.Context(), db.UpsertNoteParams{Name: "00-Deleted.md", Content: "stale"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(notesDir, "01-Present.md"), []byte("present"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handleAPINotesList(w, httptest.NewRequest(http.MethodGet, "/api/notes", nil))
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "00-Deleted.md") || !strings.Contains(w.Body.String(), "01-Present.md") {
+		t.Fatalf("unexpected note list: status=%d body=%s", w.Code, w.Body.String())
 	}
 }
 
