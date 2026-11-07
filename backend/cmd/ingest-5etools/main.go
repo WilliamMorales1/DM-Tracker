@@ -55,6 +55,9 @@ type spellcastingBlock struct {
 
 type statValue int
 
+// UnmarshalJSON never fails; json.Unmarshaler requires the error return.
+//
+//nolint:unparam
 func (v *statValue) UnmarshalJSON(data []byte) error {
 	*v = 10
 	var n int

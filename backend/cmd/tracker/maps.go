@@ -71,7 +71,7 @@ func handleAPICreateMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.MultipartForm != nil {
-		defer r.MultipartForm.RemoveAll()
+		defer func() { _ = r.MultipartForm.RemoveAll() }()
 	}
 
 	name := strings.TrimSpace(r.FormValue("name"))

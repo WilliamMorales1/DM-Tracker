@@ -50,6 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install TypeScript
+        run: npm install -g typescript@6.0.3
+
+      - name: Compile frontend
+        run: tsc -p frontend/tsconfig.json
+
       - name: Validate static frontend
         run: |
           test -f frontend/index.html
@@ -60,7 +70,7 @@ jobs:
           test ! -e frontend/package.json
           test ! -e frontend/package-lock.json
           test ! -d frontend/node_modules
-          ! grep -RInE 'jsdelivr.net/npm|frontend/dist|\.ts' frontend/app
+          ! grep -RInE 'jsdelivr.net/npm|frontend/dist' frontend/app --include=*.js
 
       - name: Run frontend logic tests
         run: node --test frontend/test/monster-scaling.test.mjs
