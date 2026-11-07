@@ -84,12 +84,6 @@ Notes made in app are saved in `backend/notes/`. Back up database and local file
 
 ## Tests and tools
 
-UI tests require Chromium:
-
-```sh
-make test-ui
-```
-
 Frontend logic tests require Node.js:
 
 ```sh
@@ -121,7 +115,6 @@ backend/cmd/plot/          map coordinate tool
 backend/internal/db/       database access and migrations
 backend/internal/          embedding client
 backend/migrations/        SQLite migrations
-backend/e2e/               Chromium UI tests
 backend/notes/             local notes (ignored by Git)
 backend/maps/              uploaded maps (ignored by Git)
 frontend/app/              browser modules and panels

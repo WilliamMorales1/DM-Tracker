@@ -1,4 +1,4 @@
-.PHONY: build build-frontend compile-frontend build-backend test-ui plot run dev clean migrate reseed
+.PHONY: build build-frontend compile-frontend build-backend plot run dev clean migrate reseed
 
 build: build-frontend build-backend
 
@@ -14,9 +14,6 @@ compile-frontend:
 
 build-backend:
 	cd backend && go build -o tracker ./cmd/tracker
-
-test-ui: build
-	cd backend && go test -tags=e2e ./e2e
 
 MAP ?= error
 

@@ -1671,3 +1671,36 @@ mark {
   }
 }
 
+
+.map-pin {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.75rem;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.map-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 480px;
+}
+
+.map-error {
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+.list-group-item-action.active {
+  background-color: #374151;
+}

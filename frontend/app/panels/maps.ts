@@ -22,8 +22,141 @@ export async function mapsPanel() {
     });
     const status = h('span', { className: 'text-sm text-gray-400' }, []);
     const image = h('img', {
-        className: 'hidden max-w-full h-auto rounded',
+        className: 'block max-w-full h-auto rounded',
         alt: '',
+    });
+    const pins = h('div', { className: 'absolute inset-0 pointer-events-none' }, []);
+    const stage = h('div', { className: 'relative inline-block max-w-full hidden' }, [image, pins]);
+    const addToggle = h('button', { type: 'button', className: 'btn btn-outline-secondary' }, ['Add point']);
+    const hint = h('span', { className: 'text-sm text-gray-400' }, []);
+    const editor = h('div', { className: 'mb-3 hidden' }, []);
+    let markers = [];
+    let adding = false;
+    let currentId = '';
+
+    function setAdding(on) {
+        adding = on;
+        addToggle.classList.toggle('active', on);
+        stage.style.cursor = on ? 'crosshair' : '';
+        hint.textContent = on ? 'Click the map to place a point.' : '';
+    }
+
+    function closeEditor() {
+        editor.classList.add('hidden');
+        editor.innerHTML = '';
+    }
+
+    function renderPins() {
+        pins.innerHTML = '';
+        const w = image.naturalWidth || 1;
+        const ht = image.naturalHeight || 1;
+        for (const m of markers) {
+            pins.append(h('button', {
+                type: 'button',
+                title: m.title,
+                'aria-label': m.title,
+                className: 'map-pin',
+                style: { left: `${(m.x / w) * 100}%`, top: `${(m.y / ht) * 100}%` },
+                onclick: (e) => {
+                    e.stopPropagation();
+                    openEditor(m);
+                },
+            }, [String(m.i)]));
+        }
+    }
+
+    function openEditor(marker) {
+        const isNew = marker.i === undefined;
+        const title = h('input', {
+            type: 'text',
+            className: 'form-control',
+            maxlength: '100',
+            required: true,
+            placeholder: 'Title',
+            'aria-label': 'Point title',
+        });
+        title.value = marker.title ?? '';
+        const body = h('textarea', {
+            className: 'form-control',
+            rows: '3',
+            maxlength: '500',
+            placeholder: 'Description',
+            'aria-label': 'Point description',
+        });
+        body.value = marker.body ?? '';
+        const err = h('span', { className: 'map-error' }, []);
+        const buttons = [
+            h('button', { type: 'submit', className: 'btn btn-outline-warning' }, [isNew ? 'Add' : 'Save']),
+            h('button', { type: 'button', className: 'btn btn-outline-secondary', onclick: closeEditor }, ['Cancel']),
+        ];
+        if (!isNew) {
+            buttons.push(h('button', {
+                type: 'button',
+                className: 'btn btn-outline-danger',
+                onclick: async () => {
+                    try {
+                        await api.deleteMarker(currentId, marker.i);
+                        markers = markers.filter((m) => m.i !== marker.i);
+                        renderPins();
+                        closeEditor();
+                    }
+                    catch (error) {
+                        err.textContent = String(error);
+                    }
+                },
+            }, ['Delete']));
+        }
+        const form = h('form', {
+            className: 'map-editor',
+            onsubmit: async (event) => {
+                event.preventDefault();
+                const next = { ...marker, title: title.value.trim(), body: body.value };
+                try {
+                    if (isNew) {
+                        markers.push(await api.createMarker(currentId, next));
+                    }
+                    else {
+                        const saved = await api.updateMarker(currentId, next);
+                        markers = markers.map((m) => (m.i === saved.i ? saved : m));
+                    }
+                    renderPins();
+                    closeEditor();
+                }
+                catch (error) {
+                    err.textContent = String(error);
+                }
+            },
+        }, [title, body, h('div', { className: 'flex gap-2 items-center' }, [...buttons, err])]);
+        editor.innerHTML = '';
+        editor.append(form);
+        editor.classList.remove('hidden');
+        title.focus();
+    }
+
+    async function loadMarkers(id) {
+        markers = [];
+        renderPins();
+        closeEditor();
+        if (!id) return;
+        try {
+            const loaded = await api.markers(id);
+            if (id === currentId) markers = loaded;
+        }
+        catch (error) {
+            status.textContent = String(error);
+        }
+        renderPins();
+    }
+
+    addToggle.addEventListener('click', () => setAdding(!adding));
+    image.addEventListener('load', renderPins);
+    stage.addEventListener('click', (event) => {
+        if (!adding || !currentId) return;
+        const rect = image.getBoundingClientRect();
+        const x = Math.round(((event.clientX - rect.left) / rect.width) * image.naturalWidth);
+        const y = Math.round(((event.clientY - rect.top) / rect.height) * image.naturalHeight);
+        setAdding(false);
+        openEditor({ x, y });
     });
     const empty = h('p', { className: 'text-gray-400' }, ['No maps yet. Upload an image to add one.']);
 
@@ -34,7 +167,14 @@ export async function mapsPanel() {
             select.append(h('option', { value: map.id }, [map.id]));
         select.value = maps.some((map) => map.id === selected) ? selected : maps[0]?.id ?? '';
         const current = maps.find((map) => map.id === select.value);
-        image.classList.toggle('hidden', !current);
+        stage.classList.toggle('hidden', !current);
+        addToggle.classList.toggle('hidden', !current);
+        const nextId = current?.id ?? '';
+        if (nextId !== currentId) {
+            currentId = nextId;
+            setAdding(false);
+            loadMarkers(nextId);
+        }
         empty.classList.toggle('hidden', maps.length > 0);
         if (current) {
             image.src = current.img;
@@ -82,7 +222,9 @@ export async function mapsPanel() {
     renderMaps(requestedMap || undefined);
     return h('div', {}, [
         h('div', { className: 'flex flex-wrap gap-3 items-center mb-3' }, [select, form]),
+        h('div', { className: 'flex gap-3 items-center mb-3' }, [addToggle, hint]),
+        editor,
         empty,
-        image,
+        stage,
     ]);
 }

@@ -22,6 +22,30 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+  markers: (mapId) => getJSON(`/api/maps/${encodeURIComponent(mapId)}/markers`),
+  createMarker: async (mapId, marker) => {
+    const res = await fetch(`/api/maps/${encodeURIComponent(mapId)}/markers`, {
+      method: "POST",
+      body: JSON.stringify(marker),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  updateMarker: async (mapId, marker) => {
+    const res = await fetch(
+      `/api/maps/${encodeURIComponent(mapId)}/markers/${marker.i}`,
+      { method: "PUT", body: JSON.stringify(marker) },
+    );
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  deleteMarker: async (mapId, i) => {
+    const res = await fetch(
+      `/api/maps/${encodeURIComponent(mapId)}/markers/${i}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) throw new Error(await res.text());
+  },
   search: (q) => getJSON(`/api/search?q=${encodeURIComponent(q)}`),
   chat: (q, model) =>
     getJSON(

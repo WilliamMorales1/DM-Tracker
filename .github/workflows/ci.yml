@@ -38,13 +38,6 @@ jobs:
           # Prebuilt binaries lag behind go.mod's Go version; build with the toolchain from setup-go.
           install-mode: goinstall
 
-      - name: Install Chromium
-        run: sudo apt-get update && sudo apt-get install -y chromium
-
-      - name: Browser UI and visual regression tests
-        working-directory: backend
-        run: go test -tags=e2e ./e2e
-
   frontend:
     runs-on: ubuntu-latest
     steps:

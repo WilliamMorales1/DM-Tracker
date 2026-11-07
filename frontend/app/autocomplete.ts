@@ -6,9 +6,26 @@ export function autocomplete(opts) {
         className: `${opts.suggestionClass} list-group shadow border border-gray-600 fixed z-[2000] max-h-[280px] overflow-y-auto hidden`,
     });
     document.body.append(suggestions);
+    let items = [];
+    let active = -1;
     function hide() {
         suggestions.classList.add('hidden');
         suggestions.innerHTML = '';
+        items = [];
+        active = -1;
+    }
+    function choose(item) {
+        input.value = opts.label(item);
+        hide();
+        opts.onSelect(item);
+    }
+    function setActive(index) {
+        const buttons = suggestions.children;
+        buttons[active]?.classList.remove('active');
+        active = index;
+        const el = buttons[active];
+        el?.classList.add('active');
+        el?.scrollIntoView({ block: 'nearest' });
     }
     function position() {
         const rect = input.getBoundingClientRect();
@@ -23,6 +40,17 @@ export function autocomplete(opts) {
             suggestions.style.bottom = '';
         }
     }
+    // Per-frame tracking also covers layout shifts that fire no scroll/resize event.
+    function track() {
+        if (suggestions.classList.contains('hidden'))
+            return;
+        if (!input.isConnected) {
+            hide();
+            return;
+        }
+        position();
+        requestAnimationFrame(track);
+    }
     function show(query) {
         if (query.length < minLen) {
             hide();
@@ -34,20 +62,23 @@ export function autocomplete(opts) {
             return;
         }
         suggestions.innerHTML = '';
+        items = matches;
+        active = -1;
         for (const item of matches) {
             suggestions.append(h('button', {
                 type: 'button',
                 className: 'list-group-item list-group-item-action flex justify-between items-center gap-2',
                 onmousedown: (e) => {
                     e.preventDefault();
-                    input.value = opts.label(item);
-                    hide();
-                    opts.onSelect(item);
+                    choose(item);
                 },
             }, opts.renderItem(item)));
         }
+        const wasHidden = suggestions.classList.contains('hidden');
         position();
         suggestions.classList.remove('hidden');
+        if (wasHidden)
+            requestAnimationFrame(track);
     }
     const input = h('input', {
         type: 'text',
@@ -61,6 +92,28 @@ export function autocomplete(opts) {
             show(value);
         },
         onfocus: (e) => show(e.target.value),
+        onkeydown: (e) => {
+            let open = !suggestions.classList.contains('hidden') && items.length > 0;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                if (!open) {
+                    show(input.value);
+                    open = !suggestions.classList.contains('hidden');
+                    if (!open)
+                        return;
+                }
+                e.preventDefault();
+                const step = e.key === 'ArrowDown' ? 1 : -1;
+                setActive(active === -1 ? (step === 1 ? 0 : items.length - 1) : (active + step + items.length) % items.length);
+            }
+            else if (e.key === 'Enter' && open && active >= 0) {
+                e.preventDefault();
+                choose(items[active]);
+            }
+            else if (e.key === 'Escape' && open) {
+                e.preventDefault();
+                hide();
+            }
+        },
         onblur: () => hide(),
     });
     return {
