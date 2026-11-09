@@ -1,16 +1,15 @@
-.PHONY: build build-frontend compile-frontend build-backend plot run dev clean migrate reseed
+.PHONY: build build-frontend typecheck-frontend test-frontend build-backend plot run dev clean migrate reseed
 
 build: build-frontend build-backend
 
-build-frontend: compile-frontend
-	test -f frontend/index.html
-	test -f frontend/index.css
-	test -f frontend/app/main.js
-	test -f frontend/vendor/marked.esm.js
-	test -f frontend/vendor/monaco/min/vs/loader.js
+build-frontend:
+	cd frontend && npm ci && npm run build
 
-compile-frontend:
-	tsc -p frontend/tsconfig.json
+typecheck-frontend:
+	cd frontend && npm run typecheck
+
+test-frontend:
+	cd frontend && npm test
 
 build-backend:
 	cd backend && go build -o tracker ./cmd/tracker
@@ -28,7 +27,7 @@ dev: build-frontend
 
 clean:
 	rm -f backend/tracker
-	rm -rf backend/tmp
+	rm -rf backend/tmp frontend/dist
 
 migrate:
 	cd backend && go run ./cmd/migrate

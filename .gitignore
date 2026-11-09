@@ -1,6 +1,7 @@
 tracker.exe
 backend/tracker
-frontend/app/**/*.js
+frontend/node_modules/
+frontend/dist/
 backend/notes/
 backend/tmp/
 backend/maps/

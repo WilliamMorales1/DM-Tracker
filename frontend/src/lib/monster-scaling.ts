@@ -1,23 +1,23 @@
 export const CR_OPTIONS = [
-  "0",
-  "1/8",
-  "1/4",
-  "1/2",
+  '0',
+  '1/8',
+  '1/4',
+  '1/2',
   ...Array.from({ length: 30 }, (_, i) => String(i + 1)),
 ];
 export function crToNumber(cr) {
-  cr = (cr || "0").trim();
-  if (cr.includes("/")) {
-    const [n, d] = cr.split("/").map(Number);
+  cr = (cr || '0').trim();
+  if (cr.includes('/')) {
+    const [n, d] = cr.split('/').map(Number);
     return d ? n / d : 0;
   }
   const n = Number(cr);
   return Number.isFinite(n) ? n : 0;
 }
 export function numberToCr(n) {
-  if (n === 0.125) return "1/8";
-  if (n === 0.25) return "1/4";
-  if (n === 0.5) return "1/2";
+  if (n === 0.125) return '1/8';
+  if (n === 0.25) return '1/4';
+  if (n === 0.5) return '1/2';
   return String(n);
 }
 function crToPb(crNumber) {
@@ -158,7 +158,7 @@ function fmtSigned(n) {
 // on `newAvg`, keeping the same die type and scaling the die count by the
 // same ratio the average changed by.
 function scaleFormula(formula, oldAvg, newAvg) {
-  const m = /^(\d+)d(\d+)\s*([+-]\s*\d+)?$/.exec((formula || "").trim());
+  const m = /^(\d+)d(\d+)\s*([+-]\s*\d+)?$/.exec((formula || '').trim());
   if (!m || oldAvg <= 0) return formula;
   const n = Number(m[1]);
   const sides = Number(m[2]);
@@ -166,25 +166,20 @@ function scaleFormula(formula, oldAvg, newAvg) {
   const ratio = newAvg / oldAvg;
   const newN = Math.max(1, Math.round(n * ratio));
   const newMod = Math.round(newAvg - newN * dieAvg);
-  return newMod === 0
-    ? `${newN}d${sides}`
-    : `${newN}d${sides} ${fmtSigned(newMod)}`;
+  return newMod === 0 ? `${newN}d${sides}` : `${newN}d${sides} ${fmtSigned(newMod)}`;
 }
 const reToHit = /([+-]\d+) to hit/g;
 const reDC = /DC (\d+)/g;
 const reDamage = /(\d+)\s*\((\d+)d(\d+)(?:\s*([+-])\s*(\d+))?\)/g;
 function scaleText(text, pbDelta, dprRatio) {
-  let out = text.replace(
-    reToHit,
-    (_, bonus) => `${fmtSigned(Number(bonus) + pbDelta)} to hit`,
-  );
+  let out = text.replace(reToHit, (_, bonus) => `${fmtSigned(Number(bonus) + pbDelta)} to hit`);
   out = out.replace(reDC, (_, dc) => `DC ${Math.max(1, Number(dc) + pbDelta)}`);
   out = out.replace(reDamage, (_, avg, n, sides) => {
     const dieAvg = (Number(sides) + 1) / 2;
     const newN = Math.max(1, Math.round(Number(n) * dprRatio));
     const newAvgTotal = Math.max(newN, Math.round(Number(avg) * dprRatio));
     const newMod = newAvgTotal - Math.round(newN * dieAvg);
-    const modPart = newMod === 0 ? "" : ` ${fmtSigned(newMod)}`;
+    const modPart = newMod === 0 ? '' : ` ${fmtSigned(newMod)}`;
     return `${newAvgTotal} (${newN}d${sides}${modPart})`;
   });
   return out;
@@ -209,8 +204,7 @@ export function scaleMonster(base, targetCrNumber) {
   const newAc =
     base.ac +
     Math.round(
-      (CR_AC[numberToCr(targetCrNumber)] ?? base.ac) -
-        (CR_AC[numberToCr(crInNumber)] ?? base.ac),
+      (CR_AC[numberToCr(targetCrNumber)] ?? base.ac) - (CR_AC[numberToCr(crInNumber)] ?? base.ac),
     );
   const dprIn = midpoint(rangeOf(CR_DPR_RANGES, crInNumber));
   const dprOut = midpoint(rangeOf(CR_DPR_RANGES, targetCrNumber));

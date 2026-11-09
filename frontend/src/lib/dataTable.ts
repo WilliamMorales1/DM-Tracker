@@ -1,21 +1,21 @@
-import { h } from "./dom.js";
+import { h } from './dom';
 export function dataTable(columns, rows, emptyMessage) {
   if (rows.length === 0) {
-    return h("p", { className: "p-3 text-gray-400" }, [emptyMessage]);
+    return h('p', { className: 'p-3 text-gray-400' }, [emptyMessage]);
   }
-  let filter = "";
+  let filter = '';
   let sortCol = null;
   let sortAsc = true;
-  const tbody = h("tbody", {}, []);
-  const theadRow = h("tr", {}, []);
-  const wrapper = h("div", { className: "overflow-x-auto" }, []);
+  const tbody = h('tbody', {}, []);
+  const theadRow = h('tr', {}, []);
+  const wrapper = h('div', { className: 'overflow-x-auto' }, []);
   function getRows() {
     let result = rows;
     if (filter.trim()) {
       const f = filter.toLowerCase();
       result = result.filter((row) =>
         columns.some((c) =>
-          String(c.sortValue ? c.sortValue(row) : "")
+          String(c.sortValue ? c.sortValue(row) : '')
             .toLowerCase()
             .includes(f),
         ),
@@ -35,14 +35,12 @@ export function dataTable(columns, rows, emptyMessage) {
     return result;
   }
   function renderHead() {
-    theadRow.innerHTML = "";
+    theadRow.innerHTML = '';
     columns.forEach((c, i) => {
       const th = h(
-        "th",
+        'th',
         {
-          className: c.sortValue
-            ? "cursor-pointer whitespace-nowrap"
-            : "whitespace-nowrap",
+          className: c.sortValue ? 'cursor-pointer whitespace-nowrap' : 'whitespace-nowrap',
           onclick: c.sortValue
             ? () => {
                 if (sortCol === i) {
@@ -56,7 +54,7 @@ export function dataTable(columns, rows, emptyMessage) {
               }
             : undefined,
         },
-        [c.header + (sortCol === i ? (sortAsc ? " ▲" : " ▼") : "")],
+        [c.header + (sortCol === i ? (sortAsc ? ' ▲' : ' ▼') : '')],
       );
       theadRow.append(th);
     });
@@ -67,9 +65,9 @@ export function dataTable(columns, rows, emptyMessage) {
     const textNodes = [];
     let node;
     while ((node = walker.nextNode())) textNodes.push(node);
-    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig");
+    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
     for (const tn of textNodes) {
-      const text = tn.textContent ?? "";
+      const text = tn.textContent ?? '';
       if (!re.test(text)) continue;
       re.lastIndex = 0;
       const frag = document.createDocumentFragment();
@@ -77,7 +75,7 @@ export function dataTable(columns, rows, emptyMessage) {
       let m;
       while ((m = re.exec(text))) {
         frag.append(text.slice(lastIndex, m.index));
-        frag.append(h("mark", {}, [m[0]]));
+        frag.append(h('mark', {}, [m[0]]));
         lastIndex = m.index + m[0].length;
       }
       frag.append(text.slice(lastIndex));
@@ -85,22 +83,22 @@ export function dataTable(columns, rows, emptyMessage) {
     }
   }
   function renderBody() {
-    tbody.innerHTML = "";
+    tbody.innerHTML = '';
     const f = filter.trim();
     for (const row of getRows()) {
-      const tr = h("tr", {}, []);
+      const tr = h('tr', {}, []);
       for (const c of columns) {
-        const td = h("td", {}, [c.render(row)]);
+        const td = h('td', {}, [c.render(row)]);
         if (f) highlight(td, f);
         tr.append(td);
       }
       tbody.append(tr);
     }
   }
-  const filterInput = h("input", {
-    type: "text",
-    className: "form-control mb-2",
-    placeholder: "Filter columns...",
+  const filterInput = h('input', {
+    type: 'text',
+    className: 'form-control mb-2',
+    placeholder: 'Filter columns...',
     oninput: (e) => {
       filter = e.target.value;
       renderBody();
@@ -108,8 +106,8 @@ export function dataTable(columns, rows, emptyMessage) {
   });
   renderHead();
   renderBody();
-  const table = h("table", { className: "table table-hover w-full" }, [
-    h("thead", {}, [theadRow]),
+  const table = h('table', { className: 'table table-hover w-full' }, [
+    h('thead', {}, [theadRow]),
     tbody,
   ]);
   wrapper.append(filterInput, table);

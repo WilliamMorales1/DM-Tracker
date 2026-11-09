@@ -70,7 +70,7 @@ For development, run without building binary:
 make dev
 ```
 
-Frontend uses browser JavaScript and CSS. No frontend package manager or build step is needed. Browser dependencies are in `frontend/vendor/`.
+Frontend is TypeScript built with Vite. `make dev` builds it to `frontend/dist/`, which the Go server serves. Node.js 22+ required. For hot reload, run the backend and `cd frontend && npm run dev` (proxies `/api`, `/images`, `/maps` to `localhost:8080`).
 
 ## Import data
 
@@ -115,10 +115,10 @@ Notes made in app are saved in `backend/notes/`. Back up database and local file
 
 ## Tests and tools
 
-Frontend logic tests require Node.js:
+Frontend tests and type check require Node.js:
 
 ```sh
-node --test frontend/test/*.test.mjs
+cd frontend && npm test && npm run typecheck
 ```
 
 Plot map coordinates:
@@ -149,9 +149,9 @@ backend/internal/embeddings/ embedding client
 backend/migrations/        SQLite migrations
 backend/notes/             local notes (ignored by Git)
 backend/maps/              uploaded maps (ignored by Git)
-frontend/app/              browser modules and panels
-frontend/vendor/           browser dependencies
-frontend/test/             Node.js tests
+frontend/src/              TypeScript source (panels/, lib/, styles/)
+frontend/public/           static assets, vendored Monaco editor
+frontend/dist/             build output (ignored by Git)
 Makefile                   build and run commands
 ```
 
@@ -161,4 +161,4 @@ Unofficial D&D fan tool. Dungeons & Dragons and related marks belong to Wizards 
 
 ## License
 
-Code uses the [MIT License](LICENSE). Vendored libraries in `frontend/vendor/` keep their own licenses. Imported content and user-supplied assets are not covered by this license.
+Code uses the [MIT License](LICENSE). Vendored libraries in `frontend/public/vendor/` keep their own licenses. Imported content and user-supplied assets are not covered by this license.

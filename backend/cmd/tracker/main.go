@@ -25,7 +25,7 @@ func logRequests(next http.Handler) http.Handler {
 
 const dbPath = "tracker.db"
 
-const frontendDist = "../frontend"
+const frontendDist = "../frontend/dist"
 
 func serveFrontend(w http.ResponseWriter, r *http.Request) {
 	path := filepath.Join(frontendDist, filepath.Clean(r.URL.Path))

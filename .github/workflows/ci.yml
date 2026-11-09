@@ -47,23 +47,18 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install TypeScript
-        run: npm install -g typescript@6.0.3
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
 
-      - name: Compile frontend
-        run: tsc -p frontend/tsconfig.json
+      - name: Format check
+        working-directory: frontend
+        run: npm run format:check
 
-      - name: Validate static frontend
-        run: |
-          test -f frontend/index.html
-          test -f frontend/index.css
-          test -f frontend/app/main.js
-          test -f frontend/vendor/marked.esm.js
-          test -f frontend/vendor/monaco/min/vs/loader.js
-          test ! -e frontend/package.json
-          test ! -e frontend/package-lock.json
-          test ! -d frontend/node_modules
-          ! grep -RInE 'jsdelivr.net/npm|frontend/dist' frontend/app --include=*.js
+      - name: Test
+        working-directory: frontend
+        run: npm test
 
-      - name: Run frontend logic tests
-        run: node --test frontend/test/monster-scaling.test.mjs
+      - name: Build
+        working-directory: frontend
+        run: npm run build
