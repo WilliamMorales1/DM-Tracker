@@ -370,7 +370,7 @@ func handleAPIChat(w http.ResponseWriter, r *http.Request) {
 		httpError(w, r, 400, "missing model", nil)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 240*time.Second)
 	defer cancel()
 	answer, err := runAgent(ctx, model, q)
 	if err != nil {

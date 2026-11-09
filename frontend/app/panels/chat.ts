@@ -27,7 +27,9 @@ export async function chatPanel() {
         modelsError = String(err);
     }
     const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
-    const initialModel = savedModel && models.includes(savedModel) ? savedModel : (models[0] ?? '');
+    // Cloud models answer in seconds; local CPU inference times out on the agent prompt.
+    const defaultModel = models.find((m) => m.endsWith(':cloud') || m.endsWith('-cloud')) ?? models[0] ?? '';
+    const initialModel = savedModel && models.includes(savedModel) ? savedModel : defaultModel;
     const modelSelect = h('select', {
         className: 'form-select w-auto',
         'aria-label': 'Chat model',

@@ -19,16 +19,42 @@ import (
 const ollamaURL = "http://localhost:11434/v1/chat/completions"
 const ollamaTagsURL = "http://localhost:11434/api/tags"
 
-// Ollama runs local inference and can take a while, especially cold-loading
-// a model; tool calls (web/API) should fail fast instead of hanging forever.
-var ollamaClient = &http.Client{Timeout: 60 * time.Second}
+// Ollama on CPU needs ~1 min to cold-load and prefill system prompt;
+// tool calls (web/API) should fail fast instead of hanging forever.
+var ollamaClient = &http.Client{Timeout: 180 * time.Second}
 var toolClient = &http.Client{Timeout: 15 * time.Second}
 
 const systemPrompt = `You are a D&D Dungeon Master assistant.
-Use the search and sql tools to answer questions about the game. Use lore_search for narrative/story lore from available text. Use web_search for general knowledge not in the database.
+Tools: sql (campaign database, try first), lore_search (adventure story text), dnd_lookup (SRD rules/items/classes), web_search (last resort).
 
-Database schema:
-  Monsters(id, name, type, cr, hp, hp_formula, ac, ac_desc, speed, str, dex, con, int_score, wis, cha, saving_throws, damage_resistances, damage_immunities, condition_immunities, senses, languages, traits, actions, legendary_actions, notes)
+SQLite schema (read-only):
+  Monsters(name, type, cr, hp, ac, speed, size, alignment, str, dex, con, int_score, wis, cha,
+    saving_throws, skills, passive_perception, damage_resistances, damage_immunities, vulnerabilities,
+    condition_immunities, senses, languages, environment, source, traits, actions, bonus_actions,
+    reactions, legendary_actions, lair_actions, spellcasting)
+  Spells(name, level, school, ritual, casting_time, range, components, duration, concentration, description, higher_level, source)
+  Notes(name, content)  -- DM markdown notes
+  MapMarkers(map_id, title, body)
+  InitiativePresets(name, combatants)  -- JSON [{name, hp, ac}]
+  Conditions(name, effects, description)
+  ExhaustionLevels(level, effect)
+  Actions(name, tag, description)
+  SkillAreas(skill, areas)
+
+Formats:
+- cr TEXT '0','1/8','1/4','1/2','1'..'30'. Numeric: (CASE cr WHEN '1/8' THEN 0.125 WHEN '1/4' THEN 0.25 WHEN '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END)
+- type lowercase with subtype, e.g. 'humanoid (goblinoid)': use LIKE 'humanoid%'.
+- size T/S/M/L/H/G. alignment codes 'L E', 'C G', 'N', 'U'.
+- saving_throws/skills 'Dex +6, Wis +8'. immunities 'fire; poison'. speed 'walk 40 ft., fly 80 ft.'.
+- traits/actions/etc: JSON [{name, text}], search with LIKE.
+- Spells.level 0 = cantrip. ritual/concentration 0/1. school 'Evocation'.
+- Fuzzy names: name LIKE '%goblin%'.
+Select needed columns only, add LIMIT. On error or no rows, fix/loosen query and retry.
+
+Examples:
+SELECT name, cr, ac, hp, speed, damage_immunities FROM Monsters WHERE name LIKE '%adult red dragon%' LIMIT 5;
+SELECT name, cr, hp FROM Monsters WHERE type LIKE 'undead%' AND (CASE cr WHEN '1/8' THEN 0.125 WHEN '1/4' THEN 0.25 WHEN '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END) BETWEEN 3 AND 5 LIMIT 50;
+SELECT name, range, duration FROM Spells WHERE level = 3 AND concentration = 1 AND school = 'Evocation' LIMIT 50;
 
 Strict rules:
     No articles (the, a, an).
@@ -38,7 +64,7 @@ Strict rules:
     Prefer code/data over talk.
     Absolute bluntness.
     No Emojis.
-	Always use a tool to look up information before answering. 
+    Always use a tool before answering. Never invent stats.
 
 Response style:
 "Adult red dragon. CR 17. Legendary. See stats below." NOT "An adult red dragon is a very powerful creature with a challenge rating of 17 and several legendary actions you should be aware of."`
@@ -87,7 +113,7 @@ type chatResp struct {
 var tools = []chatTool{
 	{Type: "function", Function: toolFunction{
 		Name:        "sql",
-		Description: "Run a read-only SQL SELECT query against the SQLite campaign database.",
+		Description: "Run read-only SQLite SELECT query against campaign database. Schema and column formats in system prompt.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -348,12 +374,12 @@ func dndLookup(ctx context.Context, category, index string) string {
 
 func execSQL(ctx context.Context, query string) string {
 	q := strings.TrimSpace(strings.ToUpper(query))
-	if !strings.HasPrefix(q, "SELECT") {
-		return "Error: only SELECT queries allowed."
+	if !strings.HasPrefix(q, "SELECT") && !strings.HasPrefix(q, "WITH") {
+		return "Error: only SELECT or WITH queries allowed."
 	}
 	rows, err := roConn.QueryContext(ctx, query)
 	if err != nil {
-		return "Query error: " + err.Error()
+		return "Query error: " + err.Error() + "\nFix query against schema in system prompt and retry."
 	}
 	defer rows.Close()
 
