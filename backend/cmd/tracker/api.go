@@ -383,8 +383,8 @@ func handleAPIChat(w http.ResponseWriter, r *http.Request) {
 	}{q, answer})
 }
 
-func handleAPIOllamaModels(w http.ResponseWriter, r *http.Request) {
-	models, err := listOllamaModels(r.Context())
+func handleAPIModels(w http.ResponseWriter, r *http.Request) {
+	models, err := listChatModels(r.Context())
 	if err != nil {
 		httpError(w, r, 502, err.Error(), err)
 		return

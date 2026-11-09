@@ -51,7 +51,7 @@ export const api = {
     getJSON(
       `/api/chat?q=${encodeURIComponent(q)}&model=${encodeURIComponent(model)}`,
     ),
-  ollamaModels: () => getJSON("/api/ollama-models"),
+  models: () => getJSON("/api/models"),
   notes: () => getJSON("/api/notes"),
   note: (name) => getJSON(`/api/notes/${encodeURIComponent(name)}`),
   saveNote: async (name, content) => {

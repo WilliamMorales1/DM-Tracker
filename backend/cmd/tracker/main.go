@@ -77,7 +77,7 @@ func main() {
 	mux.HandleFunc("PUT /api/maps/{id}/markers/{i}", handleAPIUpdateMapMarker)
 	mux.HandleFunc("DELETE /api/maps/{id}/markers/{i}", handleAPIDeleteMapMarker)
 	mux.HandleFunc("GET /api/chat", handleAPIChat)
-	mux.HandleFunc("GET /api/ollama-models", handleAPIOllamaModels)
+	mux.HandleFunc("GET /api/models", handleAPIModels)
 	mux.HandleFunc("GET /api/search", handleAPISearch)
 	mux.HandleFunc("GET /api/notes", handleAPINotesList)
 	mux.HandleFunc("GET /api/notes/{name}", handleAPIGetNote)

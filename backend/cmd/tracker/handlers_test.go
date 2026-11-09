@@ -305,16 +305,16 @@ func TestExecSQLReadOnlyConnectionBlocksWrites(t *testing.T) {
 	}
 }
 
-func TestHandleAPIOllamaModelsNoOllamaRunning(t *testing.T) {
+func TestHandleAPIModelsNoServerRunning(t *testing.T) {
 	setupTestDB(t)
+	t.Setenv("LLM_BASE_URL", "http://127.0.0.1:1")
 
-	req := httptest.NewRequest(http.MethodGet, "/api/ollama-models", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/models", nil)
 	w := httptest.NewRecorder()
-	handleAPIOllamaModels(w, req)
+	handleAPIModels(w, req)
 
-	// In CI/sandboxed environments there's no local Ollama; the handler
-	// should degrade to a clean 502 rather than panicking or hanging.
-	if w.Code != http.StatusBadGateway && w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d or %d", w.Code, http.StatusBadGateway, http.StatusOK)
+	// With no LLM server the handler should degrade to a clean 502 rather than panicking or hanging.
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadGateway)
 	}
 }

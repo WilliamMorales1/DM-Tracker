@@ -1,50 +1,47 @@
-// Package embeddings talks to a local Ollama instance to turn text into
-// vector embeddings for semantic search.
+// Package embeddings turns text into vector embeddings for semantic search
+// via any OpenAI-compatible server's /embeddings endpoint.
 package embeddings
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
+
+	"tracker/internal/llm"
 )
 
-const Model = "nomic-embed-text-v2-moe"
-const ollamaEmbedURL = "http://localhost:11434/api/embeddings"
+// DefaultModel is served under this id by both Ollama and Lemonade (user.nomic-embed-text-v2-moe).
+const DefaultModel = "nomic-embed-text-v2-moe"
 
 var client = &http.Client{Timeout: 60 * time.Second}
+
+// Model returns LLM_EMBED_MODEL, or DefaultModel.
+func Model() string {
+	if m := os.Getenv("LLM_EMBED_MODEL"); m != "" {
+		return m
+	}
+	return DefaultModel
+}
 
 // Embed returns the embedding for text as a JSON-array string (e.g.
 // "[0.1,0.2,...]"), suitable for storing in a sqlite column.
 func Embed(ctx context.Context, text string) (string, error) {
-	body, err := json.Marshal(map[string]string{"model": Model, "prompt": text})
-	if err != nil {
-		return "", fmt.Errorf("marshal embedding request: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ollamaEmbedURL, bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("ollama not reachable: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return "", fmt.Errorf("ollama embedding request: %s", resp.Status)
-	}
 	var er struct {
-		Embedding []float32 `json:"embedding"`
+		Data []struct {
+			Embedding []float32 `json:"embedding"`
+		} `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&er); err != nil {
-		return "", err
+	if err := llm.PostJSON(ctx, client, "/embeddings", map[string]any{"model": Model(), "input": text}, &er); err != nil {
+		return "", fmt.Errorf("embedding request: %w", err)
 	}
-	parts := make([]string, len(er.Embedding))
-	for i, f := range er.Embedding {
+	if len(er.Data) == 0 || len(er.Data[0].Embedding) == 0 {
+		return "", fmt.Errorf("embedding request: empty response from model %q", Model())
+	}
+	parts := make([]string, len(er.Data[0].Embedding))
+	for i, f := range er.Data[0].Embedding {
 		parts[i] = fmt.Sprintf("%g", f)
 	}
 	return "[" + strings.Join(parts, ",") + "]", nil

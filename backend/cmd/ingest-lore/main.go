@@ -199,7 +199,7 @@ func main() {
 	}
 	resultCh := make(chan result)
 	var wg sync.WaitGroup
-	// Cap in-flight requests to GOMAXPROCS - the local Ollama server refuses
+	// Cap in-flight requests to GOMAXPROCS - local LLM servers can refuse
 	// connections (not just slows down) if all chunks fire at once.
 	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
 	for _, j := range jobs {

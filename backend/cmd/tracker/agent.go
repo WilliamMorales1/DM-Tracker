@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,14 +13,12 @@ import (
 	"time"
 
 	"tracker/internal/embeddings"
+	"tracker/internal/llm"
 )
 
-const ollamaURL = "http://localhost:11434/v1/chat/completions"
-const ollamaTagsURL = "http://localhost:11434/api/tags"
-
-// Ollama on CPU needs ~1 min to cold-load and prefill system prompt;
+// Local CPU inference needs ~1 min to cold-load and prefill system prompt;
 // tool calls (web/API) should fail fast instead of hanging forever.
-var ollamaClient = &http.Client{Timeout: 180 * time.Second}
+var llmClient = &http.Client{Timeout: 180 * time.Second}
 var toolClient = &http.Client{Timeout: 15 * time.Second}
 
 const systemPrompt = `You are a D&D Dungeon Master assistant.
@@ -164,67 +161,22 @@ var tools = []chatTool{
 	}},
 }
 
-// ollamaModel is one entry from Ollama's GET /api/tags response.
-type ollamaModel struct {
-	Name string `json:"name"`
+// listChatModels returns chat-capable models on the LLM server, so callers can
+// offer a picker instead of a hardcoded model.
+func listChatModels(ctx context.Context) ([]string, error) {
+	return llm.ChatModels(ctx, toolClient)
 }
 
-type ollamaTagsResp struct {
-	Models []ollamaModel `json:"models"`
-}
-
-// listOllamaModels returns the names of models currently pulled in the local
-// Ollama instance, so callers can offer a picker instead of a hardcoded model.
-func listOllamaModels(ctx context.Context) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ollamaTagsURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := toolClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama not reachable - is it running? (%w)", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("ollama tags request: %s", resp.Status)
-	}
-	var tr ollamaTagsResp
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return nil, fmt.Errorf("decode ollama tags response: %w", err)
-	}
-	names := make([]string, len(tr.Models))
-	for i, m := range tr.Models {
-		names[i] = m.Name
-	}
-	return names, nil
-}
-
-func ollama(ctx context.Context, model string, messages []chatMsg) (*chatResp, error) {
-	body, err := json.Marshal(chatReq{
+func chat(ctx context.Context, model string, messages []chatMsg) (*chatResp, error) {
+	var cr chatResp
+	err := llm.PostJSON(ctx, llmClient, "/chat/completions", chatReq{
 		Model:    model,
 		Messages: messages,
 		Tools:    tools,
 		Stream:   false,
-	})
+	}, &cr)
 	if err != nil {
-		return nil, fmt.Errorf("marshal ollama request: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ollamaURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := ollamaClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama not reachable or timed out - is it running? (%w)", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("ollama chat request: %s", resp.Status)
-	}
-	var cr chatResp
-	if err := json.NewDecoder(resp.Body).Decode(&cr); err != nil {
-		return nil, fmt.Errorf("decode ollama response: %w", err)
+		return nil, fmt.Errorf("chat request: %w", err)
 	}
 	return &cr, nil
 }
@@ -236,7 +188,7 @@ func runAgent(ctx context.Context, model, question string) (string, error) {
 	}
 
 	for range 8 {
-		resp, err := ollama(ctx, model, messages)
+		resp, err := chat(ctx, model, messages)
 		if err != nil {
 			return "", err
 		}

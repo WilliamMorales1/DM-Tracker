@@ -21,14 +21,14 @@ export async function chatPanel() {
     let models = [];
     let modelsError = '';
     try {
-        models = await api.ollamaModels();
+        models = await api.models();
     }
     catch (err) {
         modelsError = String(err);
     }
     const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
     // Cloud models answer in seconds; local CPU inference times out on the agent prompt.
-    const defaultModel = models.find((m) => m.endsWith(':cloud') || m.endsWith('-cloud')) ?? models[0] ?? '';
+    const defaultModel = models.find((m) => m.endsWith(':cloud') || m.endsWith('-cloud') || m.startsWith('ollama.')) ?? models[0] ?? '';
     const initialModel = savedModel && models.includes(savedModel) ? savedModel : defaultModel;
     const modelSelect = h('select', {
         className: 'form-select w-auto',
@@ -60,8 +60,8 @@ export async function chatPanel() {
     if (models.length === 0) {
         status.append(h('span', { className: 'text-secondary small' }, [
             modelsError
-                ? `No Ollama models: ${modelsError}`
-                : 'No local Ollama models found. Run `ollama pull <model>` first.',
+                ? `No LLM models: ${modelsError}`
+                : 'No chat models found. Pull one in Lemonade (`lemonade pull`) or Ollama (`ollama pull`).',
         ]));
     }
     onSubmitAsync(form, submitBtn, status, 'Thinking...', async () => {
