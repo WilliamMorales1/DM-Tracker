@@ -49,7 +49,7 @@ lemonade pull user.nomic-embed-text-v2-moe \
 ollama pull nomic-embed-text-v2-moe
 ```
 
-Chat picker lists chat models from server. On Lemonade, only models labeled `chat`; on other servers, all models except ids containing `embed`. Cloud models (`:cloud`, `-cloud`, Lemonade `ollama.*`) are preselected because local CPU inference is slow on agent prompt.
+Chat picker lists chat models from server. On Lemonade, only models labeled `chat`; on other servers, all models except ids containing `embed`. Cloud models (`:cloud`, `-cloud`, Lemonade `ollama.*`) are preselected because local CPU inference is slow on agent prompt. Last-used model is remembered and matched across servers, so `gemma4:31b-cloud` on Ollama maps to `ollama.gemma4:31b` on Lemonade.
 
 Lore vectors from one embedding model do not match query vectors from another. After changing `LLM_EMBED_MODEL`, rerun `go run ./cmd/ingest-lore`. Same model id on Lemonade and Ollama should give near-identical vectors (both f16 GGUF); reingest if switching servers degrades search.
 

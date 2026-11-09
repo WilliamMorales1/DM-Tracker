@@ -1,5 +1,6 @@
 import { api } from '@/api';
 import { h, onSubmitAsync } from '@/lib/dom';
+import { normalizeModels, pickModel } from '@/lib/models';
 function renderAnswer(text) {
   const wrap = h('div', {}, []);
   for (const para of text.split('\n\n')) {
@@ -20,17 +21,11 @@ export async function chatPanel() {
   let models = [];
   let modelsError = '';
   try {
-    models = await api.models();
+    models = normalizeModels(await api.models());
   } catch (err) {
     modelsError = String(err);
   }
-  const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
-  // Cloud models answer in seconds; local CPU inference times out on the agent prompt.
-  const defaultModel =
-    models.find((m) => m.endsWith(':cloud') || m.endsWith('-cloud') || m.startsWith('ollama.')) ??
-    models[0] ??
-    '';
-  const initialModel = savedModel && models.includes(savedModel) ? savedModel : defaultModel;
+  const initialModel = pickModel(models, localStorage.getItem(MODEL_STORAGE_KEY));
   const modelSelect = h(
     'select',
     {
